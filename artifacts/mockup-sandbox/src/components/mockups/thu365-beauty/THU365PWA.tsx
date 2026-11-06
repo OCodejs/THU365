@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Download, Share, PlusSquare, X, ExternalLink, WifiOff } from "lucide-react";
-import { AnhThuWebApp } from "./AnhThuWebApp";
+import { THU365WebApp } from "./THU365WebApp";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -22,7 +22,7 @@ function isStandalone(): boolean {
     Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
 }
 
-export function AnhThuPWA() {
+export function THU365PWA() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showGuide, setShowGuide] = useState(false);
   const [installed, setInstalled] = useState(false);
@@ -93,12 +93,12 @@ export function AnhThuPWA() {
   }
 
   if (installed) {
-    return <AnhThuWebApp />;
+    return <THU365WebApp />;
   }
 
   return (
     <>
-      <AnhThuWebApp />
+      <THU365WebApp />
       <div className="thu365-pwa-install" role="region" aria-label="Cài đặt AnhThu">
         {!online && <span className="thu365-pwa-offline"><WifiOff size={13} /> Đang ngoại tuyến</span>}
         <div className="thu365-pwa-install-copy">
