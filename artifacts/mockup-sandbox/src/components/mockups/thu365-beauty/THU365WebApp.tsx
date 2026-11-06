@@ -70,6 +70,10 @@ export function THU365WebApp() {
       });
       streamRef.current = stream;
       setFacing(nextFacing);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        void videoRef.current.play().catch(() => undefined);
+      }
       setScreen("camera");
     } catch (cause) {
       const name = cause instanceof DOMException ? cause.name : "";
@@ -202,7 +206,13 @@ export function THU365WebApp() {
   }
 
   function returnHome() {
-    if (recording) stopRecording();
+    if (recording && recorderRef.current && recorderRef.current.state !== "inactive") {
+      recorderRef.current.onstop = null;
+      recorderRef.current.stop();
+      audioStreamRef.current?.getTracks().forEach((track) => track.stop());
+      audioStreamRef.current = null;
+      setRecording(false);
+    }
     stopCamera();
     setError("");
     setScreen("home");
