@@ -34,3 +34,6 @@ jobs:
         run: pnpm --filter @workspace/mockup-sandbox run typecheck
       - name: Build prototype
         run: pnpm --filter @workspace/mockup-sandbox run build
+        env:
+          PORT: 4173
+          BASE_PATH: "/"
