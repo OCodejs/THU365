@@ -9,9 +9,14 @@ export async function createTHU365FaceTracker(){
  // @ts-expect-error pinned MediaPipe ESM CDN
  const vision=await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm");
  const files=await vision.FilesetResolver.forVisionTasks(WASM);
- const face=await vision.FaceLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:FACE,delegate:"GPU"},runningMode:"VIDEO",numFaces:1,minFaceDetectionConfidence:.55,minFacePresenceConfidence:.55,minTrackingConfidence:.55});
+ const faceOptions={baseOptions:{modelAssetPath:FACE},runningMode:"VIDEO",numFaces:1,minFaceDetectionConfidence:.55,minFacePresenceConfidence:.55,minTrackingConfidence:.55};
+ let face:any;
+ try{face=await vision.FaceLandmarker.createFromOptions(files,{...faceOptions,baseOptions:{...faceOptions.baseOptions,delegate:"GPU"}});}
+ catch{face=await vision.FaceLandmarker.createFromOptions(files,{...faceOptions,baseOptions:{...faceOptions.baseOptions,delegate:"CPU"}});}
  let segmenter:any=null;
- try{segmenter=await vision.ImageSegmenter.createFromOptions(files,{baseOptions:{modelAssetPath:SKIN,delegate:"GPU"},runningMode:"VIDEO",outputCategoryMask:true,outputConfidenceMasks:false});}catch{/* face tracker fallback */}
+ const segmentationOptions={baseOptions:{modelAssetPath:SKIN},runningMode:"VIDEO",outputCategoryMask:true,outputConfidenceMasks:false};
+ try{segmenter=await vision.ImageSegmenter.createFromOptions(files,{...segmentationOptions,baseOptions:{...segmentationOptions.baseOptions,delegate:"GPU"}});}
+ catch{try{segmenter=await vision.ImageSegmenter.createFromOptions(files,{...segmentationOptions,baseOptions:{...segmentationOptions.baseOptions,delegate:"CPU"}});}catch{/* keep landmark-only fallback */}}
  return {detectForVideo(video:HTMLVideoElement,timestamp:number):FaceResult{
   const result=face.detectForVideo(video,timestamp);
   if(segmenter)try{const out=segmenter.segmentForVideo(video,timestamp);const mask=out.categoryMask?.[0]??out.categoryMask;if(mask){const labels=mask.getAsUint8Array();const data=new Uint8Array(labels.length);for(let i=0;i<labels.length;i++)data[i]=labels[i]===3?255:0;result.skinMask={width:mask.width,height:mask.height,data};}}catch{/* retain face tracking */}
