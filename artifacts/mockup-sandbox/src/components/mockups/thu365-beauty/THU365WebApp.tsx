@@ -135,12 +135,13 @@ export function THU365WebApp() {
     }
     try {
       stopCamera();
+      const requestedResolution = mode === "image" ? studioSettings.photo : studioSettings.video;
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
           facingMode: { ideal: nextFacing },
-          width: { ideal: studioSettings.video === "4k" ? 3840 : studioSettings.video === "720" ? 1280 : 1920 },
-          height: { ideal: studioSettings.video === "4k" ? 2160 : studioSettings.video === "720" ? 720 : 1080 },
+          width: { ideal: requestedResolution === "4k" ? 3840 : requestedResolution === "720" ? 1280 : 1920 },
+          height: { ideal: requestedResolution === "4k" ? 2160 : requestedResolution === "720" ? 720 : 1080 },
           frameRate: { ideal: Number(studioSettings.fps), max: Number(studioSettings.fps) }
         }
       });
@@ -176,7 +177,7 @@ export function THU365WebApp() {
     canvas.height = video.videoHeight;
     const context = canvas.getContext("2d");
     if (!context) return;
-    if (facing === "user") {
+    if (facing === "user" && studioSettings.mirror) {
       context.translate(canvas.width, 0);
       context.scale(-1, 1);
     }
@@ -193,7 +194,7 @@ export function THU365WebApp() {
       setMediaName(`anhthu-${Date.now()}.jpg`);
       setMediaUrl(URL.createObjectURL(blob));
       setScreen("preview");
-    }, "image/jpeg", 0.94);
+    }, "image/jpeg", studioSettings.photo === "4k" ? 0.98 : 0.95);
   }
 
   async function beginVideoRecording() {
@@ -368,7 +369,7 @@ export function THU365WebApp() {
             <div className="tw-profile-panel"><div className="tw-profile-avatar">{(profileName.trim()[0] || "A").toUpperCase()}</div><h2>Hồ sơ cá nhân</h2><p>Thông tin hồ sơ được lưu cục bộ trên thiết bị này.</p><label>Tên hiển thị<input value={profileName} maxLength={32} onChange={(e) => {setProfileName(e.target.value);localStorage.setItem("anhthu-profile-name",e.target.value);}} placeholder="Nhập tên hiển thị"/></label><div className="tw-quality-note"><b>Hồ sơ trên thiết bị</b><span>Chế độ: Khách · không cần đăng nhập</span><small>AnhThu hiện chưa có tài khoản đám mây hoặc đồng bộ hồ sơ giữa nhiều thiết bị.</small></div></div>
           ) : (
             <>
-              <div className="tw-module-hero"><span className="tw-module-icon"><Sparkles size={28}/></span><h2>{activeModule === "album" ? "Thư viện trên thiết bị" : activeModule === "editor" ? "Công cụ chỉnh sửa ảnh" : activeModule === "sharp" ? "Khôi phục chi tiết hình ảnh" : activeModule === "beauty" ? "Làm đẹp thông minh" : activeModule === "short-video" ? "Tạo video dọc 9:16" : "Beauty effects studio"}</h2><p>{activeModule === "album" ? "Chọn ảnh hoặc video từ thư viện iPhone. AnhThu chỉ truy cập nội dung bạn chủ động chọn." : activeModule === "editor" ? "Chọn ảnh để mở quy trình chỉnh sửa. Bản hiện tại đang hoàn thiện bộ công cụ chỉnh sửa nâng cao." : activeModule === "sharp" ? "Chọn ảnh cần xử lý. AI tăng nét chuyên sâu và phục hồi chi tiết sẽ được bổ sung sau khi tích hợp mô hình chuyên dụng." : activeModule === "beauty" ? "Dùng camera để nhận diện khuôn mặt, theo dõi vùng da và áp dụng các thiết lập làm đẹp tự động ou thủ công." : activeModule === "short-video" ? "Quay video dọc có hiệu ứng làm đẹp realtime. Giới hạn mỗi clip 60 giây; xem lại và lưu/chia sẻ sau khi quay." : "Bộ sưu tập phong cách lấy cảm hứng từ xu hướng beauty Trung Quốc và Hàn Quốc; API thương mại cần quyền truy cập từ nhà cung cấp."}</p></div>
+              <div className="tw-module-hero"><span className="tw-module-icon"><Sparkles size={28}/></span><h2>{activeModule === "album" ? "Thư viện trên thiết bị" : activeModule === "editor" ? "Công cụ chỉnh sửa ảnh" : activeModule === "sharp" ? "Khôi phục chi tiết hình ảnh" : activeModule === "beauty" ? "Làm đẹp thông minh" : activeModule === "short-video" ? "Tạo video dọc 9:16" : "Beauty effects studio"}</h2><p>{activeModule === "album" ? "Chọn ảnh hoặc video từ thư viện iPhone. AnhThu chỉ truy cập nội dung bạn chủ động chọn." : activeModule === "editor" ? "Chọn ảnh để mở quy trình chỉnh sửa. Bản hiện tại đang hoàn thiện bộ công cụ chỉnh sửa nâng cao." : activeModule === "sharp" ? "Chọn ảnh cần xử lý. AI tăng nét chuyên sâu và phục hồi chi tiết sẽ được bổ sung sau khi tích hợp mô hình chuyên dụng." : activeModule === "beauty" ? "Dùng camera để nhận diện khuôn mặt, theo dõi vùng da và áp dụng các thiết lập làm đẹp tự động hoặc thủ công." : activeModule === "short-video" ? "Quay video dọc có hiệu ứng làm đẹp realtime. Giới hạn mỗi clip 60 giây; xem lại và lưu/chia sẻ sau khi quay." : "Bộ sưu tập phong cách lấy cảm hứng từ xu hướng beauty Trung Quốc và Hàn Quốc; API thương mại cần quyền truy cập từ nhà cung cấp."}</p></div>
               {activeModule === "beauty" || activeModule === "effects" || activeModule === "short-video" ? <button className="tw-primary" onClick={() => { setError(""); if(activeModule === "short-video"){setShortVideoMode(true);setMode("video");} setScreen("permission"); }}>{activeModule === "short-video" ? "Mở studio video ngắn" : "Mở camera studio"} <ChevronRight size={17}/></button> : <button className="tw-primary" onClick={() => fileRef.current?.click()}><ImageIcon size={17}/> {activeModule === "album" ? "Mở Album trên điện thoại" : "Chọn ảnh từ thiết bị"}</button>}
               <div className="tw-module-foot"><ShieldCheck size={15}/> iPhone chỉ cấp quyền với ảnh bạn chọn. Ứng dụng không được phép tự đọc toàn bộ bộ nhớ.</div>
             </>
