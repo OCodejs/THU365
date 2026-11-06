@@ -14,14 +14,25 @@ export async function createTHU365FaceTracker(){
  try{face=await vision.FaceLandmarker.createFromOptions(files,{...faceOptions,baseOptions:{...faceOptions.baseOptions,delegate:"GPU"}});}
  catch{face=await vision.FaceLandmarker.createFromOptions(files,{...faceOptions,baseOptions:{...faceOptions.baseOptions,delegate:"CPU"}});}
  let segmenter:any=null;
+ let disposed=false;
  const segmentationOptions={baseOptions:{modelAssetPath:SKIN},runningMode:"VIDEO",outputCategoryMask:true,outputConfidenceMasks:false};
- try{segmenter=await vision.ImageSegmenter.createFromOptions(files,{...segmentationOptions,baseOptions:{...segmentationOptions.baseOptions,delegate:"GPU"}});}
- catch{try{segmenter=await vision.ImageSegmenter.createFromOptions(files,{...segmentationOptions,baseOptions:{...segmentationOptions.baseOptions,delegate:"CPU"}});}catch{/* keep landmark-only fallback */}}
- return {detectForVideo(video:HTMLVideoElement,timestamp:number):FaceResult{
-  const result=face.detectForVideo(video,timestamp);
-  if(segmenter)try{const out=segmenter.segmentForVideo(video,timestamp);const mask=out.categoryMask?.[0]??out.categoryMask;if(mask){const labels=mask.getAsUint8Array();const data=new Uint8Array(labels.length);for(let i=0;i<labels.length;i++)data[i]=labels[i]===3?255:0;result.skinMask={width:mask.width,height:mask.height,data};}}catch{/* retain face tracking */}
-  return result;
- },close(){face.close();segmenter?.close?.();},segmentationEnabled:Boolean(segmenter)};
+ // Skin segmentation is optional and must never delay the camera/face tracker.
+ void (async()=>{
+  let loaded:any=null;
+  try{loaded=await vision.ImageSegmenter.createFromOptions(files,{...segmentationOptions,baseOptions:{...segmentationOptions.baseOptions,delegate:"GPU"}});}
+  catch{try{loaded=await vision.ImageSegmenter.createFromOptions(files,{...segmentationOptions,baseOptions:{...segmentationOptions.baseOptions,delegate:"CPU"}});}catch{/* keep face-only mode */}}
+  if(disposed){loaded?.close?.();return;}
+  segmenter=loaded;
+ })();
+ return {
+  detectForVideo(video:HTMLVideoElement,timestamp:number):FaceResult{
+   const result=face.detectForVideo(video,timestamp);
+   if(segmenter)try{const out=segmenter.segmentForVideo(video,timestamp);const mask=out.categoryMask?.[0]??out.categoryMask;if(mask){const labels=mask.getAsUint8Array();const data=new Uint8Array(labels.length);for(let i=0;i<labels.length;i++)data[i]=labels[i]===3?255:0;result.skinMask={width:mask.width,height:mask.height,data};}}catch{/* retain face tracking */}
+   return result;
+  },
+  close(){disposed=true;face.close();segmenter?.close?.();segmenter=null;},
+  get segmentationEnabled(){return Boolean(segmenter);}
+ };
 }
 const LIPS=[61,146,91,181,84,17,314,405,321,375,291,308,324,318,402,317,14,87,178,88,95,78];
 const OVAL=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
