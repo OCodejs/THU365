@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { readVideoDraft, saveVideoDraft, type VideoDraft } from "./videoDraft";
 import {
   ArrowLeft,
   Check,
@@ -15,8 +16,15 @@ const studioPath = "/__mockup/preview/thu365-beauty/CreatorStudio";
 const pickerPath = "/__mockup/preview/thu365-beauty/THU365Prototype";
 
 export function VideoShareReview() {
-  const [visibility, setVisibility] = useState<"private" | "public">("private");
+  const [draft, setDraft] = useState<VideoDraft>(() => readVideoDraft());
   const [confirmed, setConfirmed] = useState(false);
+  const visibility = draft.visibility;
+  const coverFrames = [
+    { name: "Chân dung", position: "50% 28%" },
+    { name: "Ánh nhìn", position: "50% 43%" },
+    { name: "Khung rộng", position: "50% 62%" },
+  ];
+  const updateDraft = (patch: Partial<VideoDraft>) => setDraft(saveVideoDraft(patch));
 
   return (
     <main className="thu-review">
@@ -226,14 +234,14 @@ export function VideoShareReview() {
 
       <section className="review-preview-wrap" aria-label="Bản xem trước video dọc">
         <div className="review-preview">
-          <img src="/__mockup/images/thu365-beauty-portrait.jpg" alt="Khung hình video làm đẹp dọc" />
+          <img src="/__mockup/images/thu365-beauty-portrait.jpg" alt="Khung hình video làm đẹp dọc" style={{ objectPosition: coverFrames[draft.coverIndex].position }} />
           <div className="preview-topline">
             <span className="preview-chip"><Video size={10} /> XEM TRƯỚC</span>
             <span className="preview-chip">9:16</span>
           </div>
           <span className="preview-play" aria-hidden="true"><Play size={16} fill="currentColor" /></span>
           <div className="preview-bottomline">
-            <span className="preview-caption">một chút dịu dàng</span>
+            <span className="preview-caption">{draft.caption || "một chút dịu dàng"}</span>
             <span className="preview-chip">00:12</span>
           </div>
         </div>
@@ -251,7 +259,7 @@ export function VideoShareReview() {
       <div className="destination-row">
         <span className="destination-label">Điểm đến</span>
         <span className="destination-value">
-          TikTok <span className="unconnected">Chưa kết nối</span>
+          TikTok <span className="unconnected">Mô phỏng · chưa kết nối</span>
         </span>
       </div>
 
@@ -265,7 +273,7 @@ export function VideoShareReview() {
             type="button"
             className={`visibility-choice ${visibility === "private" ? "selected" : ""}`}
             aria-pressed={visibility === "private"}
-            onClick={() => setVisibility("private")}
+            onClick={() => updateDraft({ visibility: "private" })}
           >
             <span className="radio-mark">{visibility === "private" ? <Check size={12} /> : <Circle size={12} />}</span>
             <span><span className="choice-name">Chỉ mình tôi</span><span className="choice-hint">Riêng tư</span></span>
@@ -274,7 +282,7 @@ export function VideoShareReview() {
             type="button"
             className={`visibility-choice ${visibility === "public" ? "selected" : ""}`}
             aria-pressed={visibility === "public"}
-            onClick={() => setVisibility("public")}
+            onClick={() => updateDraft({ visibility: "public" })}
           >
             <span className="radio-mark">{visibility === "public" ? <Check size={12} /> : <Circle size={12} />}</span>
             <span><span className="choice-name">Mọi người</span><span className="choice-hint">Công khai</span></span>
@@ -292,7 +300,7 @@ export function VideoShareReview() {
         <button className="review-button" type="button" onClick={() => setConfirmed(true)}>
           Xác nhận lựa chọn <ChevronRight size={15} />
         </button>
-        <p className="review-footnote">Chỉ xác nhận trạng thái thử nghiệm trên màn hình này.</p>
+        <p className="review-footnote">Chỉ mô phỏng bước bàn giao; chưa kết nối TikTok hay dịch vụ chia sẻ nào.</p>
       </div>
 
       <nav className="review-links" aria-label="Điều hướng khác">
@@ -306,7 +314,7 @@ export function VideoShareReview() {
             <div className="success-symbol"><Check size={22} /></div>
             <h2 className="success-heading" id="success-heading">Đã xác nhận lựa chọn</h2>
             <p className="success-text">
-              Đây chỉ là trạng thái thử nghiệm cục bộ. Không có video nào được xuất, lưu, tải lên hoặc đăng.
+              Đây chỉ là bước bàn giao mô phỏng trong prototype. Không có video nào được xuất, tải lên hoặc đăng lên TikTok.
             </p>
             <button className="review-button" type="button" onClick={() => { setConfirmed(false); window.location.href = studioPath; }}>
               Quay lại Creator Studio <ArrowLeft size={14} />
