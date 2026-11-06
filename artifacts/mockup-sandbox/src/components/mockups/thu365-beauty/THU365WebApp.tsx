@@ -220,7 +220,6 @@ export function THU365WebApp() {
 
   return (
     <main className="thu365-web">
-      <style>{styles}</style>
       {screen === "home" && (
         <section className="tw-home">
           <header className="tw-header">
