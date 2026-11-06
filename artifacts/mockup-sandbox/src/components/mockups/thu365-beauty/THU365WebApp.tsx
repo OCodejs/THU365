@@ -220,6 +220,7 @@ export function THU365WebApp() {
 
   return (
     <main className="thu365-web">
+      <input ref={fileRef} className="tw-hidden" type="file" accept="image/*,video/*" onChange={(event) => selectLibraryFile(event.target.files?.[0])} />
       {screen === "home" && (
         <section className="tw-home">
           <header className="tw-header">
@@ -246,7 +247,6 @@ export function THU365WebApp() {
             <span className="tw-action-copy"><b>Chọn ảnh hoặc video</b><small>Mở thư viện trên iPhone hoặc Android</small></span>
             <ChevronRight size={18} />
           </button>
-          <input ref={fileRef} className="tw-hidden" type="file" accept="image/*,video/*" onChange={(event) => selectLibraryFile(event.target.files?.[0])} />
           <div className="tw-privacy-note"><ShieldCheck size={15} /><span><b>Riêng tư mặc định.</b> Ảnh/video được xử lý trong trình duyệt, không tải lên máy chủ THU365.</span></div>
           <footer className="tw-footer">THU365 BEAUTY · BẢN DÙNG THỬ PWA</footer>
         </section>
