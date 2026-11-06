@@ -80,6 +80,9 @@ export default function App() {
         getCameraPermission(), getMicrophonePermission(), getLibraryPermission()
       ]);
       setCameraGranted(camera.granted);
+      if (camera.granted && permissionIssue === "camera") setPermissionIssue(null);
+      if (microphone.granted && permissionIssue === "microphone") setPermissionIssue(null);
+      if (library.granted && permissionIssue === "library") setPermissionIssue(null);
       if (!camera.granted && screen === "camera") {
         setCameraReady(false);
         setScreen("intro");
@@ -97,7 +100,7 @@ export default function App() {
     } catch {
       // A failed status refresh never grants access or blocks unrelated features.
     }
-  }, [audioEnabled, cameraMode, getCameraPermission, getLibraryPermission, getMicrophonePermission, screen]);
+  }, [audioEnabled, cameraMode, getCameraPermission, getLibraryPermission, getMicrophonePermission, permissionIssue, screen]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
