@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Download, Share, PlusSquare, X, ExternalLink, WifiOff } from "lucide-react";
-import { THU365Prototype } from "./THU365Prototype";
+import { THU365WebApp } from "./THU365WebApp";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -93,12 +93,12 @@ export function THU365PWA() {
   }
 
   if (installed) {
-    return <THU365Prototype />;
+    return <THU365WebApp />;
   }
 
   return (
     <>
-      <THU365Prototype />
+      <THU365WebApp />
       <div className="thu365-pwa-install" role="region" aria-label="Cài đặt THU365">
         {!online && <span className="thu365-pwa-offline"><WifiOff size={13} /> Đang ngoại tuyến</span>}
         <div className="thu365-pwa-install-copy">
