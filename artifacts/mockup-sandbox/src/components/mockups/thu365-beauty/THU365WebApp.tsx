@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createTHU365FaceTracker, renderFaceAR, type FaceARSettings } from "./THU365FaceAR";
 import {
   ArrowLeft, Aperture, Camera, Check, ChevronRight, Download, FlipHorizontal2,
   Image as ImageIcon, LockKeyhole, Mic, Play, RotateCcw, ShieldCheck, Sparkles,
@@ -8,12 +9,29 @@ import {
 type Screen = "home" | "permission" | "camera" | "preview";
 type MediaKind = "image" | "video";
 type CameraFacing = "user" | "environment";
+type BeautyPreset = { id: string; name: string; filter: string; description: string };
+const BEAUTY_PRESETS: BeautyPreset[] = [
+  { id: "natural", name: "Natural", filter: "brightness(1.04) saturate(1.08) contrast(1.02)", description: "Da tự nhiên, ánh sáng dịu" },
+  { id: "glass", name: "Glass Skin", filter: "brightness(1.12) saturate(1.08) contrast(.94)", description: "Hiệu ứng sáng trong kiểu glass skin" },
+  { id: "soft", name: "Soft Glam", filter: "brightness(1.08) saturate(1.13) contrast(1.04) sepia(.04)", description: "Tông makeup mềm, ấm" },
+  { id: "rose", name: "Rose", filter: "brightness(1.05) saturate(1.16) sepia(.12) hue-rotate(330deg)", description: "Hồng đào nhẹ nhàng" },
+  { id: "latte", name: "Latte", filter: "brightness(1.04) saturate(.88) sepia(.2) contrast(1.04)", description: "Nâu sữa ấm áp" },
+  { id: "cool", name: "Cool", filter: "brightness(1.06) saturate(.92) hue-rotate(9deg) contrast(1.06)", description: "Trong trẻo, tông lạnh" },
+  { id: "film", name: "Film", filter: "brightness(1.02) saturate(.78) sepia(.16) contrast(1.12)", description: "Màu film hoài cổ" },
+  { id: "glow", name: "Golden", filter: "brightness(1.1) saturate(1.18) sepia(.1)", description: "Ánh vàng rực rỡ" },
+  { id: "mono", name: "Mono", filter: "grayscale(1) contrast(1.12)", description: "Đen trắng tối giản" }
+];
 
 export function THU365WebApp() {
   const [screen, setScreen] = useState<Screen>("home");
   const [facing, setFacing] = useState<CameraFacing>("user");
   const [mode, setMode] = useState<MediaKind>("image");
   const [beauty, setBeauty] = useState(35);
+  const [arSettings, setArSettings] = useState<FaceARSettings>({ smooth: 35, lipstick: "rgba(190,48,83,.9)", blush: "rgba(238,105,135,.8)", eyeliner: false, hairTint: "none", sticker: "none", light: "soft" });
+  const [trackingStatus, setTrackingStatus] = useState("Đang chờ camera");
+  const [savedPresets, setSavedPresets] = useState<Array<{name:string;settings:FaceARSettings}>>(() => { try { return JSON.parse(localStorage.getItem("thu365-ar-presets") || "[]"); } catch { return []; } });
+  const [preset, setPreset] = useState("natural");
+  const activePreset = BEAUTY_PRESETS.find((item) => item.id === preset) ?? BEAUTY_PRESETS[0];
   const [recording, setRecording] = useState(false);
   const [micGuide, setMicGuide] = useState(false);
   const [error, setError] = useState("");
@@ -23,6 +41,8 @@ export function THU365WebApp() {
   const [mediaName, setMediaName] = useState("thu365-photo.jpg");
   const [notice, setNotice] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
+  const arCanvasRef = useRef<HTMLCanvasElement>(null);
+  const trackerRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioStreamRef = useRef<MediaStream | null>(null);
@@ -41,6 +61,33 @@ export function THU365WebApp() {
     audioStreamRef.current?.getTracks().forEach((track) => track.stop());
     if (mediaUrl) URL.revokeObjectURL(mediaUrl);
   }, [mediaUrl]);
+
+
+  useEffect(() => {
+    if (screen !== "camera") return;
+    let active = true; let raf = 0; let tracker: any = null; let last = -1;
+    setTrackingStatus("Đang tải mô hình nhận diện");
+    void createTHU365FaceTracker().then((loaded) => {
+      if (!active) { loaded.close(); return; }
+      tracker = loaded; trackerRef.current = loaded; setTrackingStatus("AI Face Tracking đang hoạt động");
+      const tick = () => {
+        if (!active) return;
+        const video = videoRef.current, canvas = arCanvasRef.current;
+        if (video && canvas && video.readyState >= 2 && video.currentTime !== last) {
+          last = video.currentTime;
+          try { const result = tracker.detectForVideo(video, performance.now()); renderFaceAR(canvas, video, result, arSettings, `${activePreset.filter} brightness(${1 + beauty / 650}) saturate(${1 + beauty / 500})`); setTrackingStatus(result.faceLandmarks?.length ? "Đã nhận diện khuôn mặt" : "Đưa khuôn mặt vào khung hình"); } catch { setTrackingStatus("Đang khởi tạo theo dõi"); }
+        }
+        raf = requestAnimationFrame(tick);
+      }; tick();
+    }).catch(() => setTrackingStatus("Không tải được AI model · kiểm tra kết nối mạng"));
+    return () => { active = false; cancelAnimationFrame(raf); tracker?.close?.(); trackerRef.current = null; };
+  }, [screen, arSettings, activePreset.filter, beauty]);
+
+  function saveARPreset() {
+    const name = window.prompt("Tên preset cá nhân?"); if (!name?.trim()) return;
+    const next = [...savedPresets.filter((item) => item.name !== name.trim()), { name: name.trim(), settings: arSettings }].slice(-12);
+    setSavedPresets(next); localStorage.setItem("thu365-ar-presets", JSON.stringify(next)); showNotice("Đã lưu preset trên thiết bị");
+  }
 
   function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -102,7 +149,7 @@ export function THU365WebApp() {
       context.translate(canvas.width, 0);
       context.scale(-1, 1);
     }
-    context.filter = `brightness(${1 + beauty / 500}) saturate(${1 + beauty / 250})`;
+    context.filter = `${activePreset.filter} brightness(${1 + beauty / 650}) saturate(${1 + beauty / 500})`;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     canvas.toBlob((blob) => {
       if (!blob) {
@@ -272,17 +319,19 @@ export function THU365WebApp() {
       {screen === "camera" && (
         <section className="tw-camera-screen">
           <div className="tw-camera-view">
-            <video ref={videoRef} autoPlay muted playsInline className="tw-live-video" style={{ filter: `brightness(${1 + beauty / 500}) saturate(${1 + beauty / 250})`, transform: facing === "user" ? "scaleX(-1)" : "none" }} />
+            <video ref={videoRef} autoPlay muted playsInline className="tw-live-video" style={{ opacity: 0, transform: facing === "user" ? "scaleX(-1)" : "none" }} /><canvas ref={arCanvasRef} className="tw-ar-canvas" style={{ transform: facing === "user" ? "scaleX(-1)" : "none" }} />
             <div className="tw-live-shade" />
             <header className="tw-camera-header">
               <button className="tw-glass" onClick={returnHome} aria-label="Đóng camera"><ArrowLeft size={19} /></button>
               <div className="tw-brand">THU<span>365</span></div>
               <button className="tw-glass" onClick={() => void startCamera(facing === "user" ? "environment" : "user")} aria-label="Đổi camera"><FlipHorizontal2 size={19} /></button>
             </header>
-            <div className="tw-live-label"><span /> CAMERA TRỰC TIẾP</div>
+            <div className="tw-live-label"><span /> {trackingStatus.toUpperCase()}</div>
             <div className="tw-camera-bottom">
               <div className="tw-filter-row">
-                <div><span>ĐIỀU CHỈNH LÀM ĐẸP</span><b>{beauty}%</b></div>
+                <div><span>HIỆU ỨNG · {activePreset.description}</span><b>{beauty}%</b></div>
+                <div className="tw-ar-tools"><label>SON <select value={arSettings.lipstick} onChange={(e) => setArSettings(v => ({...v, lipstick:e.target.value}))}><option value="none">Tắt</option><option value="rgba(190,48,83,.9)">Đỏ cherry</option><option value="rgba(190,95,105,.9)">Hồng đất</option><option value="rgba(145,70,105,.9)">Mận</option></select></label><label>MÁ HỒNG <select value={arSettings.blush} onChange={(e) => setArSettings(v => ({...v, blush:e.target.value}))}><option value="none">Tắt</option><option value="rgba(238,105,135,.8)">Rose</option><option value="rgba(240,150,105,.8)">Peach</option></select></label><label><input type="checkbox" checked={arSettings.eyeliner} onChange={(e) => setArSettings(v => ({...v, eyeliner:e.target.checked}))}/> Eyeliner</label><label>TÓC <select value={arSettings.hairTint} onChange={(e) => setArSettings(v => ({...v, hairTint:e.target.value}))}><option value="none">Tự nhiên</option><option value="#8b4d2d">Nâu</option><option value="#c69a45">Vàng</option><option value="#7b477e">Tím</option></select></label><label>STICKER <select value={arSettings.sticker} onChange={(e) => setArSettings(v => ({...v, sticker:e.target.value as FaceARSettings["sticker"]}))}><option value="none">Tắt</option><option value="hearts">Hearts</option><option value="sunglasses">Sunglasses</option><option value="sparkles">Sparkles</option></select></label><label>ÁNH SÁNG <select value={arSettings.light} onChange={(e) => setArSettings(v => ({...v, light:e.target.value as FaceARSettings["light"]}))}><option value="none">Tắt</option><option value="soft">Soft</option><option value="golden">Golden</option><option value="studio">Studio</option></select></label><button type="button" onClick={saveARPreset}>Lưu preset</button>{savedPresets.map((item) => <button type="button" key={item.name} onClick={() => setArSettings(item.settings)}>{item.name}</button>)}</div>
+                <div className="tw-preset-strip" aria-label="Chọn hiệu ứng làm đẹp">{BEAUTY_PRESETS.map((item) => <button key={item.id} type="button" className={`tw-preset ${preset === item.id ? "is-active" : ""}`} onClick={() => setPreset(item.id)} aria-pressed={preset === item.id}><span className={`tw-preset-swatch swatch-${item.id}`} /><small>{item.name}</small></button>)}</div>
                 <input aria-label="Cường độ làm đẹp" type="range" min="0" max="100" value={beauty} onChange={(event) => setBeauty(Number(event.target.value))} />
               </div>
               <div className="tw-capture-row">
@@ -356,7 +405,7 @@ export function THU365WebApp() {
         .tw-primary{width:100%;min-height:49px;display:flex;align-items:center;justify-content:center;gap:9px;border:0;border-radius:13px;background:#e5b6aa;color:#211715;font-size:12px;font-weight:700}
         .tw-secondary{width:100%;min-height:42px;border:0;background:transparent;color:#c9b9b3;font-size:11px}
         .tw-camera-screen{min-height:100dvh;background:#090909}.tw-camera-view{height:100dvh;min-height:560px;position:relative;overflow:hidden;background:#161313}
-        .tw-live-video{width:100%;height:100%;position:absolute;inset:0;object-fit:cover;background:#161313}
+        .tw-live-video,.tw-ar-canvas{width:100%;height:100%;position:absolute;inset:0;object-fit:cover;background:#161313}.tw-ar-canvas{pointer-events:none}.tw-ar-tools{display:flex;gap:8px;overflow-x:auto;padding:0 0 10px;align-items:center}.tw-ar-tools label{display:flex;align-items:center;gap:4px;white-space:nowrap;color:#d8c9c2;font-size:8px}.tw-ar-tools select,.tw-ar-tools button{border:1px solid #ffffff30;border-radius:8px;background:#211c1b;color:#f6f0ec;padding:6px;font-size:9px}.tw-ar-tools input{accent-color:#e5b6aa}
         .tw-live-shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,#0009,transparent 23%,transparent 54%,#000b 100%)}
         .tw-camera-header{position:absolute;z-index:2;top:max(16px,env(safe-area-inset-top));left:18px;right:18px;display:flex;align-items:center;justify-content:space-between}
         .tw-live-label{position:absolute;top:80px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid #ffffff24;border-radius:99px;background:#17131399;color:#f5e9e4;font-size:9px;letter-spacing:.1em;white-space:nowrap}
@@ -365,6 +414,8 @@ export function THU365WebApp() {
         .tw-filter-row{padding:12px 14px;margin-bottom:23px;border:1px solid #ffffff1b;border-radius:14px;background:#161313c9;backdrop-filter:blur(15px)}
         .tw-filter-row>div{display:flex;justify-content:space-between;margin-bottom:10px;color:#c7b9b3;font-size:8px;letter-spacing:.1em}.tw-filter-row b{color:#e5b6aa;font-size:10px}
         .tw-filter-row input{width:100%;accent-color:#e5b6aa}
+        .tw-preset-strip{display:flex;gap:9px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.tw-preset-strip::-webkit-scrollbar{display:none}
+        .tw-preset{flex:0 0 58px;display:flex;flex-direction:column;align-items:center;gap:6px;border:0;background:transparent;color:#cfc4bf;padding:3px 0;font-size:8px}.tw-preset small{font-size:8px;white-space:nowrap}.tw-preset-swatch{width:43px;height:43px;border:2px solid #ffffff40;border-radius:50%;background:linear-gradient(145deg,#f1c7b7,#9b655e 48%,#30211f);box-shadow:inset 0 0 0 2px #171313}.tw-preset.is-active .tw-preset-swatch{border-color:#e5b6aa;box-shadow:0 0 0 2px #e5b6aa55}.tw-preset.is-active small{color:#f2c9bd;font-weight:700}.swatch-glass{filter:brightness(1.3) saturate(.8)}.swatch-soft{filter:sepia(.2) saturate(1.3)}.swatch-rose{filter:hue-rotate(330deg)}.swatch-latte{filter:sepia(.6)}.swatch-cool{filter:hue-rotate(25deg)}.swatch-film{filter:grayscale(.25) sepia(.3)}.swatch-glow{filter:brightness(1.3) sepia(.2)}.swatch-mono{filter:grayscale(1) contrast(1.2)}
         .tw-capture-row{display:flex;align-items:center;justify-content:space-between}.tw-side-button{display:flex;flex-direction:column;align-items:center;gap:7px;width:66px;border:0;background:transparent;color:#f6f0ec}
         .tw-side-button small{font-size:9px;color:#c4b8b2}.tw-shutter{width:76px;height:76px;display:grid;place-items:center;border:3px solid #fff;border-radius:50%;background:#ffffff26}
         .tw-shutter span{width:58px;height:58px;border-radius:50%;background:#f6f0ec}.tw-shutter.tw-recording span{width:25px;height:25px;border-radius:6px;background:#d86e63}
