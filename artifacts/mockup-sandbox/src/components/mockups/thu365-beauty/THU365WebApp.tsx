@@ -3,7 +3,7 @@ import { createTHU365FaceTracker, renderFaceAR, type FaceARSettings } from "./TH
 import {
   ArrowLeft, Aperture, Camera, Check, ChevronRight, Download, FlipHorizontal2,
   Image as ImageIcon, LockKeyhole, Mic, Play, RotateCcw, ShieldCheck, Sparkles,
-  Video, X, Zap
+  Video, X, Zap, Clapperboard
 } from "lucide-react";
 
 type Screen = "home" | "module" | "permission" | "camera" | "preview";
@@ -40,6 +40,10 @@ export function THU365WebApp() {
   const [preset, setPreset] = useState("natural");
   const activePreset = BEAUTY_PRESETS.find((item) => item.id === preset) ?? BEAUTY_PRESETS[0];
   const [recording, setRecording] = useState(false);
+  const [shortVideoMode, setShortVideoMode] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const shortVideoTimerRef = useRef<number | null>(null);
+  const recordingClockRef = useRef<number | null>(null);
   const [micGuide, setMicGuide] = useState(false);
   const [error, setError] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
@@ -64,6 +68,8 @@ export function THU365WebApp() {
   }, [screen]);
 
   useEffect(() => () => {
+    if (shortVideoTimerRef.current) window.clearTimeout(shortVideoTimerRef.current);
+    if (recordingClockRef.current) window.clearInterval(recordingClockRef.current);
     streamRef.current?.getTracks().forEach((track) => track.stop());
     audioStreamRef.current?.getTracks().forEach((track) => track.stop());
     if (mediaUrl) URL.revokeObjectURL(mediaUrl);
@@ -216,10 +222,18 @@ export function THU365WebApp() {
         stopCamera();
         setScreen("preview");
         setRecording(false);
+        if (shortVideoTimerRef.current) window.clearTimeout(shortVideoTimerRef.current);
+        if (recordingClockRef.current) window.clearInterval(recordingClockRef.current);
+        shortVideoTimerRef.current = null; recordingClockRef.current = null;
       };
       recorderRef.current = recorder;
       recorder.start(250);
       setRecording(true);
+      setRecordingSeconds(0);
+      if (recordingClockRef.current) window.clearInterval(recordingClockRef.current);
+      const startedAt = Date.now();
+      recordingClockRef.current = window.setInterval(() => setRecordingSeconds(Math.floor((Date.now() - startedAt) / 1000)), 500);
+      if (shortVideoMode) shortVideoTimerRef.current = window.setTimeout(() => stopRecording(), 60_000);
       setMicGuide(false);
     } catch (cause) {
       const name = cause instanceof DOMException ? cause.name : "";
@@ -310,6 +324,7 @@ export function THU365WebApp() {
             <button className="tw-module-card" onClick={() => { setActiveModule("sharp"); setScreen("module"); }}><span className="tw-module-icon"><Zap size={22}/></span><b>Làm nét ảnh AI</b><small>Phục hồi ảnh mờ · giảm nhiễu</small></button>
             <button className="tw-module-card" onClick={() => { setActiveModule("beauty"); setScreen("module"); }}><span className="tw-module-icon"><Sparkles size={22}/></span><b>AI làm đẹp</b><small>Da, makeup và nhận diện khuôn mặt</small></button>
             <button className="tw-module-card" onClick={() => { setActiveModule("effects"); setScreen("module"); }}><span className="tw-module-icon"><Check size={22}/></span><b>Hiệu ứng quốc tế</b><small>Phong cách Trung Quốc · Hàn Quốc</small></button>
+            <button className="tw-module-card tw-module-feature" onClick={() => { setActiveModule("short-video"); setShortVideoMode(true); setMode("video"); setError(""); setScreen("permission"); }}><span className="tw-module-icon"><Clapperboard size={22}/></span><b>Video ngắn</b><small>Quay video dọc tối đa 60 giây · Beauty realtime</small></button>
           </div>
           <button className="tw-action-card" onClick={() => fileRef.current?.click()}>
             <span className="tw-action-icon"><ImageIcon size={22} /></span>
@@ -325,10 +340,10 @@ export function THU365WebApp() {
         <section className="tw-module-screen">
           <header className="tw-preview-header">
             <button className="tw-back" onClick={() => setScreen("home")} aria-label="Quay lại"><ArrowLeft size={19}/></button>
-            <div><b>{activeModule === "album" ? "Album của tôi" : activeModule === "editor" ? "Chỉnh sửa ảnh" : activeModule === "sharp" ? "Làm nét ảnh AI" : activeModule === "beauty" ? "AI làm đẹp" : "Hiệu ứng quốc tế"}</b><small>ANHTHU · KHÔNG GIAN RIÊNG TƯ</small></div>
+            <div><b>{activeModule === "album" ? "Album của tôi" : activeModule === "editor" ? "Chỉnh sửa ảnh" : activeModule === "sharp" ? "Làm nét ảnh AI" : activeModule === "beauty" ? "AI làm đẹp" : activeModule === "short-video" ? "Video ngắn" : "Hiệu ứng quốc tế"}</b><small>ANHTHU · KHÔNG GIAN RIÊNG TƯ</small></div>
           </header>
-          <div className="tw-module-hero"><span className="tw-module-icon"><Sparkles size={28}/></span><h2>{activeModule === "album" ? "Thư viện trên thiết bị" : activeModule === "editor" ? "Công cụ chỉnh sửa ảnh" : activeModule === "sharp" ? "Khôi phục chi tiết hình ảnh" : activeModule === "beauty" ? "Làm đẹp thông minh" : "Beauty effects studio"}</h2><p>{activeModule === "album" ? "Chọn ảnh hoặc video từ thư viện iPhone. AnhThu chỉ truy cập nội dung bạn chủ động chọn." : activeModule === "editor" ? "Chọn ảnh để mở quy trình chỉnh sửa. Bản hiện tại đang hoàn thiện bộ công cụ chỉnh sửa nâng cao." : activeModule === "sharp" ? "Chọn ảnh cần xử lý. AI tăng nét chuyên sâu và phục hồi chi tiết sẽ được bổ sung sau khi tích hợp mô hình chuyên dụng." : activeModule === "beauty" ? "Dùng camera để nhận diện khuôn mặt, theo dõi vùng da và áp dụng các thiết lập làm đẹp tự động hoặc thủ công." : "Bộ sưu tập phong cách lấy cảm hứng từ xu hướng beauty Trung Quốc và Hàn Quốc; API thương mại cần quyền truy cập từ nhà cung cấp."}</p></div>
-          {activeModule === "beauty" || activeModule === "effects" ? <button className="tw-primary" onClick={() => { setError(""); setScreen("permission"); }}>Mở camera studio <ChevronRight size={17}/></button> : <button className="tw-primary" onClick={() => fileRef.current?.click()}><ImageIcon size={17}/> {activeModule === "album" ? "Mở Album trên điện thoại" : "Chọn ảnh từ thiết bị"}</button>}
+          <div className="tw-module-hero"><span className="tw-module-icon"><Sparkles size={28}/></span><h2>{activeModule === "album" ? "Thư viện trên thiết bị" : activeModule === "editor" ? "Công cụ chỉnh sửa ảnh" : activeModule === "sharp" ? "Khôi phục chi tiết hình ảnh" : activeModule === "beauty" ? "Làm đẹp thông minh" : activeModule === "short-video" ? "Tạo video dọc 9:16" : "Beauty effects studio"}</h2><p>{activeModule === "album" ? "Chọn ảnh hoặc video từ thư viện iPhone. AnhThu chỉ truy cập nội dung bạn chủ động chọn." : activeModule === "editor" ? "Chọn ảnh để mở quy trình chỉnh sửa. Bản hiện tại đang hoàn thiện bộ công cụ chỉnh sửa nâng cao." : activeModule === "sharp" ? "Chọn ảnh cần xử lý. AI tăng nét chuyên sâu và phục hồi chi tiết sẽ được bổ sung sau khi tích hợp mô hình chuyên dụng." : activeModule === "beauty" ? "Dùng camera để nhận diện khuôn mặt, theo dõi vùng da và áp dụng các thiết lập làm đẹp tự động hoặc thủ công." : activeModule === "short-video" ? "Quay video dọc có hiệu ứng làm đẹp realtime. Giới hạn mỗi clip 60 giây; xem lại và lưu/chia sẻ sau khi quay." : "Bộ sưu tập phong cách lấy cảm hứng từ xu hướng beauty Trung Quốc và Hàn Quốc; API thương mại cần quyền truy cập từ nhà cung cấp."}</p></div>
+          {activeModule === "beauty" || activeModule === "effects" || activeModule === "short-video" ? <button className="tw-primary" onClick={() => { setError(""); if(activeModule === "short-video"){setShortVideoMode(true);setMode("video");} setScreen("permission"); }}>{activeModule === "short-video" ? "Mở studio video ngắn" : "Mở camera studio"} <ChevronRight size={17}/></button> : <button className="tw-primary" onClick={() => fileRef.current?.click()}><ImageIcon size={17}/> {activeModule === "album" ? "Mở Album trên điện thoại" : "Chọn ảnh từ thiết bị"}</button>}
           <div className="tw-module-foot"><ShieldCheck size={15}/> iPhone chỉ cấp quyền với ảnh bạn chọn. Ứng dụng không được phép tự đọc toàn bộ bộ nhớ.</div>
           <button className="tw-secondary" onClick={() => setScreen("home")}>Về trang chủ</button>
         </section>
@@ -357,7 +372,7 @@ export function THU365WebApp() {
             <div className="tw-live-shade" />
             <header className="tw-camera-header">
               <button className="tw-glass" onClick={returnHome} aria-label="Đóng camera"><ArrowLeft size={19} /></button>
-              <div className="tw-brand">THU<span>365</span></div>
+              <div className="tw-brand">Anh<span>Thu</span></div>
               <button className="tw-glass" onClick={() => void startCamera(facing === "user" ? "environment" : "user")} aria-label="Đổi camera"><FlipHorizontal2 size={19} /></button>
             </header>
             <div className="tw-live-label"><span /> {trackingStatus.toUpperCase()}</div>
@@ -374,7 +389,7 @@ export function THU365WebApp() {
                 <button className={`tw-shutter ${recording ? "tw-recording" : ""}`} onClick={() => mode === "image" ? capturePhoto() : recording ? stopRecording() : setMicGuide(true)} aria-label={recording ? "Dừng quay" : mode === "image" ? "Chụp ảnh" : "Bắt đầu quay"}><span /></button>
                 <button className="tw-side-button" onClick={() => setMode(mode === "image" ? "video" : "image")}><Video size={21} /><small>{mode === "image" ? "Chế độ ảnh" : "Chế độ video"}</small></button>
               </div>
-              <div className="tw-mode-label">{mode === "image" ? "CHỤP ẢNH" : recording ? "ĐANG QUAY · CHẠM ĐỂ DỪNG" : "QUAY VIDEO"}</div>
+              <div className="tw-mode-label">{mode === "image" ? "CHỤP ẢNH" : recording ? `ĐANG QUAY · ${recordingSeconds}s${shortVideoMode ? " / 60s" : ""} · CHẠM ĐỂ DỪNG` : shortVideoMode ? "VIDEO NGẮN · TỐI ĐA 60 GIÂY" : "QUAY VIDEO"}</div>
             </div>
           </div>
           {error && <div className="tw-error" role="alert">{error}</div>}
