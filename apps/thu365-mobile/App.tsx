@@ -97,7 +97,7 @@ export default function App() {
     } catch {
       // A failed status refresh never grants access or blocks unrelated features.
     }
-  }, [cameraMode, getCameraPermission, getLibraryPermission, getMicrophonePermission, screen]);
+  }, [audioEnabled, cameraMode, getCameraPermission, getLibraryPermission, getMicrophonePermission, screen]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
