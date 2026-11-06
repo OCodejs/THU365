@@ -4,7 +4,7 @@ import {
   SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View
 } from "react-native";
 import {
-  Camera, CameraType, CameraView, useCameraPermissions
+  Camera, CameraView, useCameraPermissions, type CameraType
 } from "expo-camera";
 import * as MediaLibrary from "expo-media-library/legacy";
 
@@ -48,7 +48,7 @@ function PermissionRow({ icon, title, tag, description }: {
 }
 
 export default function App() {
-  const cameraRef = useRef<CameraView>(null);
+  const cameraRef = useRef<CameraView | null>(null);
   const [cameraPermission, requestCameraPermission, getCameraPermission] = useCameraPermissions();
   const [microphonePermission, requestMicrophonePermission, getMicrophonePermission] =
     Camera.useMicrophonePermissions();
@@ -59,6 +59,7 @@ export default function App() {
   const [cameraMode, setCameraMode] = useState<CameraMode>("picture");
   const [facing, setFacing] = useState<CameraType>("front");
   const [cameraReady, setCameraReady] = useState(false);
+  const [cameraGranted, setCameraGranted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
@@ -78,6 +79,7 @@ export default function App() {
       const [camera, microphone, library] = await Promise.all([
         getCameraPermission(), getMicrophonePermission(), getLibraryPermission()
       ]);
+      setCameraGranted(camera.granted);
       if (!camera.granted && screen === "camera") {
         setCameraReady(false);
         setScreen("intro");
@@ -107,11 +109,13 @@ export default function App() {
       const current = await getCameraPermission();
       const result = current.granted ? current : await requestCameraPermission();
       if (result.granted) {
+        setCameraGranted(true);
         setScreen("camera");
         setCameraMode("picture");
         setCameraReady(false);
         setPermissionIssue(null);
       } else {
+        setCameraGranted(false);
         setPermissionIssue("camera");
       }
     } catch {
@@ -278,7 +282,7 @@ export default function App() {
             <Text style={s.brand}>THU<Text style={s.brandAccent}>365</Text></Text>
             <Pressable onPress={() => setScreen("intro")}><Text style={s.headerAction}>QUYỀN RIÊNG TƯ</Text></Pressable>
           </View>
-          {cameraPermission?.granted ? (
+          {cameraGranted ? (
             <View style={s.previewWrap}>
               <CameraView ref={cameraRef} style={StyleSheet.absoluteFill}
                 facing={facing} mode={cameraMode} mute={!audioEnabled}
@@ -309,7 +313,7 @@ export default function App() {
               <Button title={cameraPermission?.canAskAgain ? "THỬ LẠI CAMERA" : "MỞ CÀI ĐẶT"} onPress={() => void retryCamera()} />
             </View>
           )}
-          {cameraPermission?.granted && (
+          {cameraGranted && (
             <>
               <View style={s.controls}>
                 <Pressable style={s.sideControl} onPress={() => setOptionalPrompt("library")} disabled={busy}>
