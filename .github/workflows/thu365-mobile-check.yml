@@ -1,0 +1,35 @@
+name: THU365 native checks
+
+on:
+  pull_request:
+    paths:
+      - "apps/thu365-mobile/**"
+      - ".github/workflows/thu365-mobile-check.yml"
+  push:
+    branches:
+      - "feat/native-camera-permissions"
+    paths:
+      - "apps/thu365-mobile/**"
+      - ".github/workflows/thu365-mobile-check.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/thu365-mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13"
+          cache: npm
+          cache-dependency-path: apps/thu365-mobile/package.json
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Verify Expo SDK package compatibility
+        run: npx expo install --check
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Expo project diagnostics
+        run: npx expo-doctor
