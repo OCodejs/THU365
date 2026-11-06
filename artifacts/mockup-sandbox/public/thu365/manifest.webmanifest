@@ -1,8 +1,8 @@
 {
   "id": "/thu365/",
-  "name": "THU365 Beauty Camera",
-  "short_name": "THU365",
-  "description": "Không gian chụp ảnh và sáng tạo video của riêng bạn.",
+  "name": "AnhThu Beauty Camera",
+  "short_name": "AnhThu",
+  "description": "Không gian camera, chỉnh sửa ảnh và AI làm đẹp riêng tư của bạn.",
   "lang": "vi-VN",
   "start_url": "/thu365/",
   "scope": "/thu365/",
