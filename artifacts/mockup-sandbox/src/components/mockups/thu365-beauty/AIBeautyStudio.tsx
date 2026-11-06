@@ -26,7 +26,7 @@ const categorySettings: Record<Category, { title: string; value: number; left: s
   "Đường nét": { title: "Độ nét gương mặt", value: 34, left: "Nguyên bản", right: "Thanh thoát" },
 };
 
-export function AIBeautyStudio() {
+export function AIBeautyStudio({ onExit }: { onExit?: () => void } = {}) {
   const [activeLook, setActiveLook] = useState<Look>("Hàn Quốc");
   const [category, setCategory] = useState<Category>("Trang điểm");
   const [intensity, setIntensity] = useState(68);
@@ -244,7 +244,7 @@ export function AIBeautyStudio() {
       `}</style>
 
       <header className="ts-topbar">
-        <button className="ts-icon-button" aria-label="Quay lại" onClick={() => setSaved(false)}>
+          <button className="ts-icon-button" aria-label="Quay lại" onClick={() => onExit ? onExit() : setSaved(false)}>
           <ArrowLeft size={19} strokeWidth={1.7} />
         </button>
         <div className="ts-brand" aria-label="THU365 Beauty Studio">

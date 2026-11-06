@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from "react";
 import {
   Aperture,
+  ArrowLeft,
   ChevronDown,
   CircleHelp,
   FlipHorizontal2,
@@ -48,6 +49,8 @@ const styles = `
   .bc-topbar { position:absolute; left: 21px; right: 21px; top: max(18px, env(safe-area-inset-top)); z-index:2;
     display:flex; align-items:center; justify-content:space-between; }
   .bc-brand { font: 800 18px/1 'Manrope', sans-serif; letter-spacing: .17em; }
+  .bc-brand-wrap { display:flex; align-items:center; gap:9px; }
+  .bc-picker-back { width:34px; height:34px; }
   .bc-brand span { color: var(--rose); }
   .bc-top-actions { display:flex; align-items:center; gap:10px; }
   .bc-glass {
@@ -127,7 +130,7 @@ const styles = `
   }
 `;
 
-export function BeautyCamera() {
+export function BeautyCamera({ onExit }: { onExit?: () => void } = {}) {
   const [selectedLook, setSelectedLook] = useState(1);
   const [intensity, setIntensity] = useState(64);
   const [mode, setMode] = useState<CameraMode>("Ảnh");
@@ -154,7 +157,14 @@ export function BeautyCamera() {
         />
         <div className="bc-shade" />
         <header className="bc-topbar">
-          <div className="bc-brand">THU<span>365</span></div>
+          <div className="bc-brand-wrap">
+            {onExit && (
+              <button className="bc-glass bc-circle bc-picker-back" onClick={onExit} aria-label="Về chọn trải nghiệm">
+                <ArrowLeft size={17} />
+              </button>
+            )}
+            <div className="bc-brand">THU<span>365</span></div>
+          </div>
           <div className="bc-top-actions">
             <button className="bc-glass bc-privacy" onClick={() => setModal("privacy")} aria-label="Mở cài đặt riêng tư">
               <LockKeyhole size={13} strokeWidth={1.8} /> Riêng tư

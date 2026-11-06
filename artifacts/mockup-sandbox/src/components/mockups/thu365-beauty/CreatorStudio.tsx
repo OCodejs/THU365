@@ -36,7 +36,7 @@ const sounds = [
   { title: "Phút dịu dàng", detail: "Piano nhẹ · 0:15", length: "00:15" },
 ];
 
-export function CreatorStudio() {
+export function CreatorStudio({ onExit }: { onExit?: () => void } = {}) {
   const [filter, setFilter] = useState("Hồng đào");
   const [panel, setPanel] = useState<Panel>(null);
   const [sound, setSound] = useState(sounds[0]);
@@ -148,7 +148,7 @@ export function CreatorStudio() {
       `}</style>
 
       <header className="studio-top">
-        <button className="studio-back" aria-label="Quay lại chế độ xem trước" onClick={() => { setEditing(false); setPanel(null); }}><ArrowLeft size={19} /></button>
+        <button className="studio-back" aria-label="Quay lại chế độ xem trước" onClick={() => { if (onExit) onExit(); else { setEditing(false); setPanel(null); } }}><ArrowLeft size={19} /></button>
         <div>
           <div className="studio-title">Dựng câu chuyện</div>
           <div className="studio-subtitle">Bản nháp · vừa lưu</div>
