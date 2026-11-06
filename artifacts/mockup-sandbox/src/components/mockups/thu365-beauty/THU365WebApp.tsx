@@ -247,6 +247,8 @@ export function THU365WebApp() {
   }
 
   function stopRecording() {
+    if (shortVideoTimerRef.current) window.clearTimeout(shortVideoTimerRef.current);
+    shortVideoTimerRef.current = null;
     if (recorderRef.current && recorderRef.current.state !== "inactive") recorderRef.current.stop();
   }
 
@@ -318,7 +320,7 @@ export function THU365WebApp() {
           </div>
           <div className="tw-section-head"><strong>Không gian sáng tạo</strong><span>ANHTHU STUDIO</span></div>
           <div className="tw-module-grid">
-            <button className="tw-module-card tw-module-feature" onClick={() => { setError(""); setScreen("permission"); }}><span className="tw-module-icon"><Camera size={22}/></span><b>Camera làm đẹp</b><small>Chụp ảnh · quay video · AR trực tiếp</small></button>
+            <button className="tw-module-card tw-module-feature" onClick={() => { setShortVideoMode(false); setMode("image"); setError(""); setScreen("permission"); }}><span className="tw-module-icon"><Camera size={22}/></span><b>Camera làm đẹp</b><small>Chụp ảnh · quay video · AR trực tiếp</small></button>
             <button className="tw-module-card" onClick={() => { setActiveModule("album"); setScreen("module"); }}><span className="tw-module-icon"><ImageIcon size={22}/></span><b>Album</b><small>Ảnh và video trên điện thoại</small></button>
             <button className="tw-module-card" onClick={() => { setActiveModule("editor"); setScreen("module"); }}><span className="tw-module-icon"><Aperture size={22}/></span><b>Chỉnh sửa ảnh</b><small>Cắt, màu sắc và ánh sáng</small></button>
             <button className="tw-module-card" onClick={() => { setActiveModule("sharp"); setScreen("module"); }}><span className="tw-module-icon"><Zap size={22}/></span><b>Làm nét ảnh AI</b><small>Phục hồi ảnh mờ · giảm nhiễu</small></button>
