@@ -129,7 +129,7 @@ export function CameraPermissions({ onBack, onContinue, onSkipOptional }: Camera
           <ShieldCheck size={13} /> Xem lựa chọn riêng tư
         </button>
       </div>
-      <p className="t365-perm-footnote">Bản xem trước giao diện. Các nút chỉ minh họa chuyển màn hình — chưa yêu cầu quyền thiết bị hay bật camera.</p>
+      <p className="t365-perm-footnote">Bản web preview chỉ minh họa giao diện. Luồng xin quyền thiết bị thật nằm trong ứng dụng native tại apps/thu365-mobile.</p>
 
       {privacyOpen && (
         <div className="t365-perm-scrim" onClick={() => setPrivacyOpen(false)}>
