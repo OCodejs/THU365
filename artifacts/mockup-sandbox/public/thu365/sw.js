@@ -1,4 +1,4 @@
-const CACHE_NAME = "anhthu-pwa-v2";
+const CACHE_NAME = "anhthu-pwa-v3";
 const APP_SHELL = [
   "/thu365/",
   "/thu365/manifest.webmanifest",
