@@ -96,11 +96,13 @@ const styles = `
   .bc-slider-label { font-size:9px; }
   .bc-capture-area { display:grid; grid-template-columns:1fr 1.3fr 1fr; align-items:center; margin-top:18px; }
   .bc-side-action { border:0; color:rgba(255,255,255,.79); background:none; cursor:pointer; justify-self:center; display:flex; flex-direction:column; align-items:center; gap:5px; font-size:9px; }
+  .bc-side-action:disabled { opacity:.35; cursor:not-allowed; }
   .bc-gallery-thumb { width:34px; height:34px; border-radius:11px; overflow:hidden; border:1px solid rgba(255,255,255,.45); position:relative; }
   .bc-gallery-thumb img { width:100%; height:100%; display:block; object-fit:cover; object-position:50% 35%; }
   .bc-capture-center { display:flex; flex-direction:column; align-items:center; gap:8px; }
   .bc-mode-switch { display:flex; align-items:center; gap:16px; font-size:10px; font-weight:700; letter-spacing:.04em; }
   .bc-mode { padding:0; border:0; background:none; color:rgba(255,255,255,.48); font:inherit; cursor:pointer; }
+  .bc-mode:disabled { opacity:.35; cursor:not-allowed; }
   .bc-mode.active { color:#f0c7b9; }
   .bc-shutter { width:61px; height:61px; border-radius:50%; display:grid; place-items:center; border:2px solid rgba(255,255,255,.88); background:rgba(255,255,255,.13); cursor:pointer; transition:transform .18s ease; }
   .bc-shutter:active { transform:scale(.94); }
@@ -130,7 +132,7 @@ const styles = `
   }
 `;
 
-export function BeautyCamera({ onExit }: { onExit?: () => void } = {}) {
+export function BeautyCamera({ onExit, optionalAccessSkipped = false }: { onExit?: () => void; optionalAccessSkipped?: boolean } = {}) {
   const [selectedLook, setSelectedLook] = useState(1);
   const [intensity, setIntensity] = useState(64);
   const [mode, setMode] = useState<CameraMode>("Ảnh");
@@ -174,7 +176,10 @@ export function BeautyCamera({ onExit }: { onExit?: () => void } = {}) {
             </button>
           </div>
         </header>
-        <div className="bc-camera-note"><span className="bc-rec-indicator" /> Bản xem trước · Chỉ mình bạn thấy</div>
+        <div className="bc-camera-note">
+          <span className="bc-rec-indicator" />
+          {optionalAccessSkipped ? "Bản xem trước · Đã bỏ qua quyền tùy chọn" : "Bản xem trước giao diện · Chưa yêu cầu quyền thiết bị"}
+        </div>
         <div className="bc-float-actions">
           <button className="bc-float-button" onClick={() => setFlipped(!flipped)} aria-label="Đổi camera trước sau" aria-pressed={flipped}>
             <FlipHorizontal2 size={17} />
@@ -237,19 +242,37 @@ export function BeautyCamera({ onExit }: { onExit?: () => void } = {}) {
         </div>
 
         <div className="bc-capture-area">
-          <button className="bc-side-action" onClick={() => setModal("gallery")} aria-label="Mở thư viện gần đây">
+          <button
+            className="bc-side-action"
+            onClick={() => setModal("gallery")}
+            aria-label="Mở thư viện gần đây"
+            disabled={optionalAccessSkipped}
+            title={optionalAccessSkipped ? "Thư viện ảnh đã được bỏ qua" : undefined}
+          >
             <span className="bc-gallery-thumb"><img src="/__mockup/images/thu365-beauty-portrait.jpg" alt="" /></span>
             <span>Thư viện</span>
           </button>
           <div className="bc-capture-center">
             <div className="bc-mode-switch" role="tablist" aria-label="Chế độ chụp">
               {(["Ảnh", "Video"] as CameraMode[]).map((item) => (
-                <button key={item} className={`bc-mode${mode === item ? " active" : ""}`} onClick={() => setMode(item)} role="tab" aria-selected={mode === item}>
+                <button
+                  key={item}
+                  className={`bc-mode${mode === item ? " active" : ""}`}
+                  onClick={() => setMode(item)}
+                  role="tab"
+                  aria-selected={mode === item}
+                  disabled={optionalAccessSkipped && item === "Video"}
+                  title={optionalAccessSkipped && item === "Video" ? "Microphone đã được bỏ qua" : undefined}
+                >
                   {item === "Video" && <Video size={11} style={{ verticalAlign: "middle", marginRight: 3 }} />}{item}
                 </button>
               ))}
             </div>
-            <button className={`bc-shutter${mode === "Video" ? " video" : ""}`} onClick={() => showNotice(mode === "Ảnh" ? "Đã chụp ảnh · Bản thử nghiệm" : "Đang ghi video · Chạm để dừng")} aria-label={mode === "Ảnh" ? "Chụp ảnh" : "Bắt đầu quay video"}>
+            <button
+              className={`bc-shutter${mode === "Video" ? " video" : ""}`}
+              onClick={() => showNotice("Điều khiển chụp chỉ minh họa trong bản xem trước")}
+              aria-label={mode === "Ảnh" ? "Xem nút chụp minh họa" : "Xem nút quay video minh họa"}
+            >
               <span className="bc-shutter-inner" />
             </button>
           </div>
@@ -273,9 +296,9 @@ export function BeautyCamera({ onExit }: { onExit?: () => void } = {}) {
             </div>
             {modal === "privacy" ? (
               <>
-                <p>THU365 giữ quyền kiểm soát trong tay bạn. Đây là bản xem trước trực quan; không có hình ảnh nào được tải lên hay lưu lại.</p>
+                <p>THU365 giữ quyền kiểm soát trong tay bạn. Đây là bản xem trước trực quan; các quyền thiết bị chưa được yêu cầu.</p>
                 <div className="bc-privacy-list">
-                  <div className="bc-privacy-item"><LockKeyhole size={15} /><div><strong>Riêng tư mặc định</strong><br /><span>Chỉ bạn thấy nội dung trên màn hình này.</span></div></div>
+                  <div className="bc-privacy-item"><LockKeyhole size={15} /><div><strong>Bạn tự quyết định</strong><br /><span>Chọn quyền cần thiết cho trải nghiệm của mình.</span></div></div>
                   <div className="bc-privacy-item"><CircleHelp size={15} /><div><strong>Bạn chọn cách chia sẻ</strong><br /><span>Chưa kết nối mạng xã hội hoặc thư viện thật.</span></div></div>
                 </div>
               </>
@@ -285,7 +308,7 @@ export function BeautyCamera({ onExit }: { onExit?: () => void } = {}) {
                   <img src="/__mockup/images/thu365-beauty-portrait.jpg" alt="Chân dung xem trước trong thư viện" />
                   <div className="bc-gallery-preview-label">Ảnh xem trước · {activeLook.name}</div>
                 </div>
-                <p>Thư viện mẫu để bạn xem giao diện. Ảnh chụp trong bản thử nghiệm không được lưu trữ.</p>
+                <p>Thư viện mẫu để bạn xem giao diện. Nội dung hiển thị chỉ mang tính minh họa.</p>
               </>
             )}
           </section>

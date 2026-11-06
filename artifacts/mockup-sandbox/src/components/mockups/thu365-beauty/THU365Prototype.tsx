@@ -3,6 +3,7 @@ import { Aperture, ArrowUpRight, Camera, Clapperboard, ScanFace, Sparkles } from
 import { BeautyCamera } from "./BeautyCamera";
 import { AIBeautyStudio } from "./AIBeautyStudio";
 import { CreatorStudio } from "./CreatorStudio";
+import { CameraPermissions } from "./CameraPermissions";
 
 type Experience = "camera" | "portrait" | "video";
 
@@ -109,8 +110,35 @@ const pickerStyles = `
 
 export function THU365Prototype() {
   const [experience, setExperience] = useState<Experience | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [optionalAccessSkipped, setOptionalAccessSkipped] = useState(false);
 
-  if (experience === "camera") return <BeautyCamera onExit={() => setExperience(null)} />;
+  if (experience === "camera" && !cameraReady) {
+    return (
+      <CameraPermissions
+        onBack={() => setExperience(null)}
+        onContinue={() => {
+          setOptionalAccessSkipped(false);
+          setCameraReady(true);
+        }}
+        onSkipOptional={() => {
+          setOptionalAccessSkipped(true);
+          setCameraReady(true);
+        }}
+      />
+    );
+  }
+  if (experience === "camera") {
+    return (
+      <BeautyCamera
+        optionalAccessSkipped={optionalAccessSkipped}
+        onExit={() => {
+          setCameraReady(false);
+          setExperience(null);
+        }}
+      />
+    );
+  }
   if (experience === "portrait") return <AIBeautyStudio onExit={() => setExperience(null)} />;
   if (experience === "video") return <CreatorStudio onExit={() => setExperience(null)} />;
 
@@ -139,7 +167,15 @@ export function THU365Prototype() {
         </div>
         <div className="tp-options">
           {options.map(({ id, number, eyebrow, title, description, icon: Icon, imagePosition, tint }) => (
-            <button key={id} className="tp-option" onClick={() => setExperience(id)} aria-label={`${title}: ${description}`}>
+            <button
+              key={id}
+              className="tp-option"
+              onClick={() => {
+                setCameraReady(false);
+                setExperience(id);
+              }}
+              aria-label={`${title}: ${description}`}
+            >
               <img
                 className="tp-option-photo"
                 src="/__mockup/images/thu365-beauty-portrait.jpg"
@@ -161,7 +197,7 @@ export function THU365Prototype() {
         </div>
       </section>
 
-      <p className="tp-footnote"><Aperture size={12} /> Bản xem trước giao diện · chưa chụp, xử lý hay lưu nội dung thật.</p>
+      <p className="tp-footnote"><Aperture size={12} /> Bản xem trước giao diện · các thao tác chỉ minh họa.</p>
     </main>
   );
 }
