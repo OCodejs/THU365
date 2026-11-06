@@ -1,0 +1,1 @@
+- [THU365 product direction](thu365-product-direction.md) — mobile-first AI beauty camera; preserve image privacy and licensed effects/API boundaries.
