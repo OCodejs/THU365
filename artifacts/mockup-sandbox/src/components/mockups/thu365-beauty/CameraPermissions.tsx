@@ -96,10 +96,16 @@ export function CameraPermissions({ onBack, onContinue, onSkipOptional }: Camera
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const dialogRef = useRef<HTMLElement>(null);
   const reviewButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogWasOpen = useRef(false);
 
   useEffect(() => {
-    if (privacyOpen) dialogRef.current?.focus();
-    else reviewButtonRef.current?.focus();
+    if (privacyOpen) {
+      dialogWasOpen.current = true;
+      dialogRef.current?.focus();
+    } else if (dialogWasOpen.current) {
+      dialogWasOpen.current = false;
+      reviewButtonRef.current?.focus();
+    }
   }, [privacyOpen]);
 
   return (
