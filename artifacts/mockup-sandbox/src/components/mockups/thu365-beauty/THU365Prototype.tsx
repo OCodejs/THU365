@@ -4,8 +4,9 @@ import { BeautyCamera } from "./BeautyCamera";
 import { AIBeautyStudio } from "./AIBeautyStudio";
 import { CreatorStudio } from "./CreatorStudio";
 import { CameraPermissions } from "./CameraPermissions";
+import { PrivateMediaLibrary } from "./PrivateMediaLibrary";
 
-type Experience = "camera" | "portrait" | "video";
+type Experience = "camera" | "portrait" | "video" | "library";
 
 const options: {
   id: Experience;
@@ -128,10 +129,22 @@ export function THU365Prototype() {
       />
     );
   }
+  if (experience === "library") {
+    return (
+      <PrivateMediaLibrary
+        onBack={() => setExperience("camera")}
+        onConceptPicker={() => {
+          setCameraReady(false);
+          setExperience(null);
+        }}
+      />
+    );
+  }
   if (experience === "camera") {
     return (
       <BeautyCamera
         optionalAccessSkipped={optionalAccessSkipped}
+        onOpenLibrary={() => setExperience("library")}
         onExit={() => {
           setCameraReady(false);
           setExperience(null);
