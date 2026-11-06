@@ -1,0 +1,66 @@
+name: THU365 Android test APK
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/thu365-mobile/**"
+      - ".github/workflows/thu365-android-apk.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: thu365-android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-android-apk:
+    name: Build installable Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apps/thu365-mobile
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13"
+          cache: npm
+          cache-dependency-path: apps/thu365-mobile/package.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install JavaScript dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Check Expo package compatibility
+        run: npx expo install --check
+
+      - name: TypeScript validation
+        run: npx tsc --noEmit
+
+      - name: Generate Android native project
+        run: npx expo prebuild --platform android --no-install --non-interactive
+
+      - name: Build debug APK
+        working-directory: apps/thu365-mobile/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: THU365-Android-test-${{ github.run_number }}
+          path: apps/thu365-mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30

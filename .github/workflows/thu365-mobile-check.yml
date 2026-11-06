@@ -31,3 +31,4 @@ jobs:
         run: npx tsc --noEmit
       - name: Expo project diagnostics
         run: npx expo-doctor
+
