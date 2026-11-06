@@ -163,6 +163,7 @@ export function THU365WebApp() {
         : "Không thể bắt đầu quay video. Hãy kiểm tra microphone và thử lại.");
       audioStreamRef.current?.getTracks().forEach((track) => track.stop());
       audioStreamRef.current = null;
+      setMicGuide(false);
     }
   }
 
@@ -220,7 +221,7 @@ export function THU365WebApp() {
 
   return (
     <main className="thu365-web">
-      <input ref={fileRef} className="tw-hidden" type="file" accept="image/*,video/*" onChange={(event) => selectLibraryFile(event.target.files?.[0])} />
+      <input ref={fileRef} className="tw-hidden" type="file" accept="image/*,video/*" onChange={(event) => { selectLibraryFile(event.target.files?.[0]); event.currentTarget.value = ""; }} />
       {screen === "home" && (
         <section className="tw-home">
           <header className="tw-header">
