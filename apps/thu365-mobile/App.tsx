@@ -157,7 +157,7 @@ export default function App() {
     setBusy(true);
     try {
       const current = await getLibraryPermission();
-      const result = current.granted ? current : await requestLibraryPermission(false, ["photo"]);
+      const result = current.granted ? current : await requestLibraryPermission();
       if (!result.granted) {
         setPermissionIssue("library");
         return;
