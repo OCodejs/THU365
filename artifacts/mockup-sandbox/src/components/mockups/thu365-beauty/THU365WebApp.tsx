@@ -75,13 +75,13 @@ export function THU365WebApp() {
     setTrackingStatus("Đang tải mô hình nhận diện");
     void createTHU365FaceTracker().then((loaded) => {
       if (!active) { loaded.close(); return; }
-      tracker = loaded; trackerRef.current = loaded; setTrackingStatus("AI Face Tracking đang hoạt động");
+      tracker = loaded; trackerRef.current = loaded; setTrackingStatus(loaded.segmentationEnabled ? "AI Face + Skin Segmentation đang hoạt động" : "AI Face hoạt động · Skin AI dự phòng");
       const tick = () => {
         if (!active) return;
         const video = videoRef.current, canvas = arCanvasRef.current;
         if (video && canvas && video.readyState >= 2 && video.currentTime !== last) {
           last = video.currentTime;
-          try { const result = tracker.detectForVideo(video, performance.now()); renderFaceAR(canvas, video, result, arSettings, `${activePreset.filter} brightness(${1 + beauty / 650}) saturate(${1 + beauty / 500})`); setTrackingStatus(result.faceLandmarks?.length ? "Đã nhận diện khuôn mặt" : "Đưa khuôn mặt vào khung hình"); } catch { setTrackingStatus("Đang khởi tạo theo dõi"); }
+          try { const result = tracker.detectForVideo(video, performance.now()); renderFaceAR(canvas, video, result, arSettings, `${activePreset.filter} brightness(${1 + beauty / 650}) saturate(${1 + beauty / 500})`); setTrackingStatus(result.faceLandmarks?.length ? (tracker.segmentationEnabled ? "AI đã nhận diện mặt + vùng da" : "Đã nhận diện khuôn mặt · Skin AI dự phòng") : "Đưa khuôn mặt vào khung hình"); } catch { setTrackingStatus("Đang khởi tạo theo dõi"); }
         }
         raf = requestAnimationFrame(tick);
       }; tick();
