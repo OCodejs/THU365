@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "THU365",
+    "slug": "thu365",
+    "scheme": "thu365",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.thu365.beautycamera"
+    },
+    "android": {
+      "package": "app.thu365.beautycamera",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_MEDIA_IMAGES"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "THU365 cần camera để hiển thị khung hình và chụp ảnh hoặc quay video khi bạn chủ động thao tác.",
+          "microphonePermission": "THU365 chỉ dùng microphone khi bạn chọn quay video có âm thanh.",
+          "recordAudioAndroid": true,
+          "barcodeScannerEnabled": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "THU365 cần quyền ảnh khi bạn chọn mở ảnh có sẵn để chỉnh sửa.",
+          "savePhotosPermission": "THU365 chỉ cần quyền lưu ảnh khi bạn chủ động lưu sản phẩm vào thư viện.",
+          "granularPermissions": ["photo"]
+        }
+      ]
+    ]
+  }
+}
