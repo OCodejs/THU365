@@ -245,7 +245,6 @@ export function BeautyCamera({ onExit, optionalAccessSkipped = false }: { onExit
           <button
             className="bc-side-action"
             onClick={() => setModal("gallery")}
-            aria-label="Mở thư viện gần đây"
             disabled={optionalAccessSkipped}
             aria-label={optionalAccessSkipped ? "Thư viện ảnh, đã tắt vì bạn bỏ qua quyền tùy chọn" : "Mở thư viện ảnh mẫu"}
             title={optionalAccessSkipped ? "Thư viện ảnh đã được bỏ qua" : undefined}
