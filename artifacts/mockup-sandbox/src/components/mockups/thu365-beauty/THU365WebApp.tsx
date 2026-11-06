@@ -54,10 +54,18 @@ export function THU365WebApp() {
   const [profileName, setProfileName] = useState(() => localStorage.getItem("anhthu-profile-name") || "AnhThu User");
   const [studioSettings, setStudioSettings] = useState(() => { try { return { photo: "1080", video: "1080", fps: "60", mirror: true, ...JSON.parse(localStorage.getItem("anhthu-studio-settings") || "{}") }; } catch { return { photo: "1080", video: "1080", fps: "60", mirror: true }; } });
   const [cameraQuality, setCameraQuality] = useState("Đang chờ camera");
+  const [arReady, setArReady] = useState(false);
+  const [aiRetry, setAiRetry] = useState(0);
   function updateStudioSettings(patch: Partial<{photo:string;video:string;fps:string;mirror:boolean}>) { setStudioSettings((current:any) => { const next = {...current, ...patch}; localStorage.setItem("anhthu-studio-settings", JSON.stringify(next)); return next; }); }
   const videoRef = useRef<HTMLVideoElement>(null);
   const arCanvasRef = useRef<HTMLCanvasElement>(null);
   const trackerRef = useRef<any>(null);
+  const arSettingsRef = useRef(arSettings);
+  const beautyRef = useRef(beauty);
+  const filterRef = useRef(activePreset.filter);
+  arSettingsRef.current = arSettings;
+  beautyRef.current = beauty;
+  filterRef.current = activePreset.filter;
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioStreamRef = useRef<MediaStream | null>(null);
@@ -81,24 +89,47 @@ export function THU365WebApp() {
 
 
   useEffect(() => {
-    if (screen !== "camera") return;
-    let active = true; let raf = 0; let tracker: any = null; let last = -1;
-    setTrackingStatus("Đang tải mô hình nhận diện");
+    if (screen !== "camera") { setArReady(false); return; }
+    let active = true;
+    let raf = 0;
+    let tracker: any = null;
+    let last = -1;
+    setArReady(false);
+    setTrackingStatus("Camera đã bật · đang tải AI nền");
+    // AI is optional: keep the raw camera visible during model download or offline.
     void createTHU365FaceTracker().then((loaded) => {
       if (!active) { loaded.close(); return; }
-      tracker = loaded; trackerRef.current = loaded; setTrackingStatus(loaded.segmentationEnabled ? "AI Face + Skin Segmentation đang hoạt động" : "AI Face hoạt động · Skin AI dự phòng");
+      tracker = loaded;
+      trackerRef.current = loaded;
+      setTrackingStatus(loaded.segmentationEnabled ? "AI Face + Skin sẵn sàng" : "AI Face sẵn sàng · Skin AI dự phòng");
       const tick = () => {
         if (!active) return;
-        const video = videoRef.current, canvas = arCanvasRef.current;
+        const video = videoRef.current;
+        const canvas = arCanvasRef.current;
         if (video && canvas && video.readyState >= 2 && video.currentTime !== last) {
           last = video.currentTime;
-          try { const result = tracker.detectForVideo(video, performance.now()); renderFaceAR(canvas, video, result, arSettings, `${activePreset.filter} brightness(${1 + beauty / 650}) saturate(${1 + beauty / 500})`); setTrackingStatus(result.faceLandmarks?.length ? (tracker.segmentationEnabled ? "AI đã nhận diện mặt + vùng da" : "Đã nhận diện khuôn mặt · Skin AI dự phòng") : "Đưa khuôn mặt vào khung hình"); } catch { setTrackingStatus("Đang khởi tạo theo dõi"); }
+          try {
+            const result = tracker.detectForVideo(video, performance.now());
+            const currentBeauty = beautyRef.current;
+            const currentFilter = filterRef.current;
+            const filter = currentFilter + " brightness(" + (1 + currentBeauty / 650) + ") saturate(" + (1 + currentBeauty / 500) + ")";
+            renderFaceAR(canvas, video, result, arSettingsRef.current, filter);
+            setArReady(true);
+            setTrackingStatus(result.faceLandmarks && result.faceLandmarks.length ? (loaded.segmentationEnabled ? "Đã nhận diện khuôn mặt + vùng da" : "Đã nhận diện khuôn mặt") : "Đưa khuôn mặt vào khung hình");
+          } catch { setTrackingStatus("AI đang khởi tạo · camera vẫn hoạt động"); }
         }
         raf = requestAnimationFrame(tick);
-      }; tick();
-    }).catch(() => setTrackingStatus("Không tải được AI model · kiểm tra kết nối mạng"));
-    return () => { active = false; cancelAnimationFrame(raf); tracker?.close?.(); trackerRef.current = null; };
-  }, [screen, arSettings, activePreset.filter, beauty]);
+      };
+      tick();
+    }).catch((cause) => {
+      if (!active) return;
+      setArReady(false);
+      trackerRef.current = null;
+      console.warn("AnhThu AI model unavailable; continuing with camera-only preview:", cause);
+      setTrackingStatus("Camera thường · AI chưa tải được");
+    });
+    return () => { active = false; cancelAnimationFrame(raf); tracker?.close?.(); trackerRef.current = null; setArReady(false); };
+  }, [screen, aiRetry]);
 
   function applyAutoBeauty(profile = autoProfile) {
     setAutoProfile(profile); setBeautyPanel("auto");
@@ -136,7 +167,7 @@ export function THU365WebApp() {
     try {
       stopCamera();
       const requestedResolution = mode === "image" ? studioSettings.photo : studioSettings.video;
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const preferredConstraints: MediaStreamConstraints = {
         audio: false,
         video: {
           facingMode: { ideal: nextFacing },
@@ -144,7 +175,16 @@ export function THU365WebApp() {
           height: { ideal: requestedResolution === "4k" ? 2160 : requestedResolution === "720" ? 720 : 1080 },
           frameRate: { ideal: Number(studioSettings.fps) }
         }
-      });
+      };
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(preferredConstraints);
+      } catch (firstError) {
+        const firstName = firstError instanceof DOMException ? firstError.name : "";
+        if (firstName === "NotAllowedError" || firstName === "PermissionDeniedError" || firstName === "NotFoundError") throw firstError;
+        // Retry with browser defaults when the requested HD/4K/FPS profile is unsupported.
+        stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: nextFacing } } });
+      }
       const actual = stream.getVideoTracks()[0]?.getSettings?.();
       setCameraQuality(actual?.width && actual?.height ? String(actual.width) + "×" + String(actual.height) + (actual.frameRate ? " · " + Math.round(actual.frameRate) + " FPS" : "") : "Thiết bị tự chọn chất lượng");
       streamRef.current = stream;
@@ -160,8 +200,14 @@ export function THU365WebApp() {
         setError("Bạn chưa cấp quyền camera. Mở Cài đặt iPhone → Safari → Camera, chọn Cho phép, rồi thử lại.");
       } else if (name === "NotFoundError" || name === "DevicesNotFoundError") {
         setError("Không tìm thấy camera trên thiết bị này.");
+      } else if (name === "NotReadableError" || name === "TrackStartError") {
+        setError("Camera đang được ứng dụng khác sử dụng hoặc iOS chưa khởi tạo được. Đóng ứng dụng camera khác rồi thử lại.");
+      } else if (name === "OverconstrainedError" || name === "ConstraintNotSatisfiedError") {
+        setError("Thiết bị không hỗ trợ cấu hình camera đã chọn. Hãy đặt video về Full HD hoặc HD trong Cài đặt.");
+      } else if (name === "SecurityError") {
+        setError("Safari đang chặn quyền camera. Hãy mở trang bằng HTTPS và cho phép Camera trong Cài đặt iPhone.");
       } else {
-        setError("Không thể mở camera. Kiểm tra quyền truy cập và thử lại.");
+        setError("Không thể mở camera (" + (name || "lỗi thiết bị") + "). Kiểm tra quyền Camera trong Cài đặt iPhone rồi thử lại.");
       }
     }
   }
@@ -397,7 +443,7 @@ export function THU365WebApp() {
       {screen === "camera" && (
         <section className="tw-camera-screen">
           <div className="tw-camera-view">
-            <video ref={videoRef} autoPlay muted playsInline className="tw-live-video" style={{ opacity: 0, transform: facing === "user" && studioSettings.mirror ? "scaleX(-1)" : "none" }} /><canvas ref={arCanvasRef} className="tw-ar-canvas" style={{ transform: facing === "user" && studioSettings.mirror ? "scaleX(-1)" : "none" }} />
+            <video ref={videoRef} autoPlay muted playsInline className="tw-live-video" style={{ opacity: arReady ? 0 : 1, transform: facing === "user" && studioSettings.mirror ? "scaleX(-1)" : "none" }} /><canvas ref={arCanvasRef} className="tw-ar-canvas" style={{ opacity: arReady ? 1 : 0, transform: facing === "user" && studioSettings.mirror ? "scaleX(-1)" : "none" }} />
             <div className="tw-live-shade" />
             <header className="tw-camera-header">
               <button className="tw-glass" onClick={returnHome} aria-label="Đóng camera"><ArrowLeft size={19} /></button>
@@ -405,6 +451,7 @@ export function THU365WebApp() {
               <button className="tw-glass" onClick={() => void startCamera(facing === "user" ? "environment" : "user")} aria-label="Đổi camera"><FlipHorizontal2 size={19} /></button>
             </header>
             <div className="tw-live-label"><span /> {trackingStatus.toUpperCase()} · {cameraQuality}</div>
+            {trackingStatus.includes("AI chưa tải") && <button type="button" className="tw-ai-retry" onClick={() => { setTrackingStatus("Đang thử tải lại AI"); setAiRetry((value) => value + 1); }}>Thử tải lại AI</button>}
             <div className="tw-camera-bottom">
               <div className="tw-filter-row">
                 <div className="tw-beauty-tabs"><button type="button" className={beautyPanel === "auto" ? "is-active" : ""} onClick={() => setBeautyPanel("auto")}>✨ TỰ ĐỘNG</button><button type="button" className={beautyPanel === "manual" ? "is-active" : ""} onClick={() => setBeautyPanel("manual")}>🎚 THỦ CÔNG</button><b>{beauty}%</b></div>
@@ -488,7 +535,7 @@ export function THU365WebApp() {
         .tw-live-shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,#0009,transparent 23%,transparent 54%,#000b 100%)}
         .tw-camera-header{position:absolute;z-index:2;top:max(16px,env(safe-area-inset-top));left:18px;right:18px;display:flex;align-items:center;justify-content:space-between}
         .tw-live-label{position:absolute;top:80px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid #ffffff24;border-radius:99px;background:#17131399;color:#f5e9e4;font-size:9px;letter-spacing:.1em;white-space:nowrap}
-        .tw-live-label span{width:6px;height:6px;border-radius:50%;background:#d6a398;box-shadow:0 0 0 3px #d6a39830}
+        .tw-live-label span{width:6px;height:6px;border-radius:50%;background:#d6a398;box-shadow:0 0 0 3px #d6a39830}.tw-ai-retry{position:absolute;z-index:3;top:119px;left:50%;transform:translateX(-50%);padding:7px 12px;border:1px solid #e5b6aa66;border-radius:99px;background:#211918;color:#f2c9bd;font-size:10px}
         .tw-camera-bottom{position:absolute;left:0;right:0;bottom:max(22px,env(safe-area-inset-bottom));padding:0 24px}
         .tw-filter-row{padding:12px 14px;margin-bottom:23px;border:1px solid #ffffff1b;border-radius:14px;background:#161313c9;backdrop-filter:blur(15px)}
         .tw-filter-row>div{display:flex;justify-content:space-between;margin-bottom:10px;color:#c7b9b3;font-size:8px;letter-spacing:.1em}.tw-filter-row b{color:#e5b6aa;font-size:10px}
