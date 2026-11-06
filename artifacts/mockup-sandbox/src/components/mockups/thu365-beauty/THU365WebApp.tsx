@@ -247,7 +247,7 @@ export function THU365WebApp() {
             <span className="tw-action-copy"><b>Chọn ảnh hoặc video</b><small>Mở thư viện trên iPhone hoặc Android</small></span>
             <ChevronRight size={18} />
           </button>
-          <div className="tw-privacy-note"><ShieldCheck size={15} /><span><b>Riêng tư mặc định.</b> Ảnh/video được xử lý trong trình duyệt, không tải lên máy chủ THU365.</span></div>
+          <div className="tw-privacy-note"><ShieldCheck size={15} /><span><b>Riêng tư mặc định.</b> Ảnh/video chỉ ở trong trình duyệt, không tải lên máy chủ. Hãy lưu tệp trước khi đóng ứng dụng.</span></div>
           <footer className="tw-footer">THU365 BEAUTY · BẢN DÙNG THỬ PWA</footer>
         </section>
       )}
