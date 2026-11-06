@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createTHU365FaceTracker, renderFaceAR, type FaceARSettings } from "./THU365FaceAR";
 import {
-  ArrowLeft, Aperture, Camera, Check, ChevronRight, Download, FlipHorizontal2,
+  ArrowLeft, Aperture, Camera, Check, ChevronRight, Download, FlipHorizontal2, Settings, UserRound,
   Image as ImageIcon, LockKeyhole, Mic, Play, RotateCcw, ShieldCheck, Sparkles,
   Video, X, Zap, Clapperboard
 } from "lucide-react";
@@ -51,6 +51,10 @@ export function THU365WebApp() {
   const [mediaBlob, setMediaBlob] = useState<Blob | null>(null);
   const [mediaName, setMediaName] = useState("thu365-photo.jpg");
   const [notice, setNotice] = useState("");
+  const [profileName, setProfileName] = useState(() => localStorage.getItem("anhthu-profile-name") || "AnhThu User");
+  const [studioSettings, setStudioSettings] = useState(() => { try { return { photo: "1080", video: "1080", fps: "60", mirror: true, ...JSON.parse(localStorage.getItem("anhthu-studio-settings") || "{}") }; } catch { return { photo: "1080", video: "1080", fps: "60", mirror: true }; } });
+  const [cameraQuality, setCameraQuality] = useState("Đang chờ camera");
+  function updateStudioSettings(patch: Partial<{photo:string;video:string;fps:string;mirror:boolean}>) { setStudioSettings((current:any) => { const next = {...current, ...patch}; localStorage.setItem("anhthu-studio-settings", JSON.stringify(next)); return next; }); }
   const videoRef = useRef<HTMLVideoElement>(null);
   const arCanvasRef = useRef<HTMLCanvasElement>(null);
   const trackerRef = useRef<any>(null);
@@ -135,10 +139,13 @@ export function THU365WebApp() {
         audio: false,
         video: {
           facingMode: { ideal: nextFacing },
-          width: { ideal: 1080 },
-          height: { ideal: 1920 }
+          width: { ideal: studioSettings.video === "4k" ? 3840 : studioSettings.video === "720" ? 1280 : 1920 },
+          height: { ideal: studioSettings.video === "4k" ? 2160 : studioSettings.video === "720" ? 720 : 1080 },
+          frameRate: { ideal: Number(studioSettings.fps), max: Number(studioSettings.fps) }
         }
       });
+      const actual = stream.getVideoTracks()[0]?.getSettings?.();
+      setCameraQuality(actual?.width && actual?.height ? String(actual.width) + "×" + String(actual.height) + (actual.frameRate ? " · " + Math.round(actual.frameRate) + " FPS" : "") : "Thiết bị tự chọn chất lượng");
       streamRef.current = stream;
       setFacing(nextFacing);
       if (videoRef.current) {
@@ -205,7 +212,9 @@ export function THU365WebApp() {
       ]);
       const candidates = ["video/mp4;codecs=h264,aac", "video/mp4", "video/webm;codecs=vp8,opus", "video/webm"];
       const mimeType = candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate));
-      const recorder = mimeType ? new MediaRecorder(recordingStream, { mimeType }) : new MediaRecorder(recordingStream);
+      const targetBitrate = studioSettings.video === "4k" ? 20_000_000 : studioSettings.video === "720" ? 6_000_000 : 12_000_000;
+      const recorderOptions: MediaRecorderOptions = { videoBitsPerSecond: targetBitrate, audioBitsPerSecond: 192_000, ...(mimeType ? { mimeType } : {}) };
+      const recorder = new MediaRecorder(recordingStream, recorderOptions);
       chunksRef.current = [];
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunksRef.current.push(event.data);
@@ -327,6 +336,8 @@ export function THU365WebApp() {
             <button className="tw-module-card" onClick={() => { setActiveModule("beauty"); setScreen("module"); }}><span className="tw-module-icon"><Sparkles size={22}/></span><b>AI làm đẹp</b><small>Da, makeup và nhận diện khuôn mặt</small></button>
             <button className="tw-module-card" onClick={() => { setActiveModule("effects"); setScreen("module"); }}><span className="tw-module-icon"><Check size={22}/></span><b>Hiệu ứng quốc tế</b><small>Phong cách Trung Quốc · Hàn Quốc</small></button>
             <button className="tw-module-card tw-module-feature" onClick={() => { setActiveModule("short-video"); setShortVideoMode(true); setMode("video"); setError(""); setScreen("permission"); }}><span className="tw-module-icon"><Clapperboard size={22}/></span><b>Video ngắn</b><small>Quay video dọc tối đa 60 giây · Beauty realtime</small></button>
+            <button className="tw-module-card" onClick={() => { setActiveModule("settings"); setScreen("module"); }}><span className="tw-module-icon"><Settings size={22}/></span><b>Cài đặt ứng dụng</b><small>Full HD · FPS · chất lượng quay</small></button>
+            <button className="tw-module-card" onClick={() => { setActiveModule("profile"); setScreen("module"); }}><span className="tw-module-icon"><UserRound size={22}/></span><b>Hồ sơ</b><small>Thông tin cá nhân trên thiết bị</small></button>
           </div>
           <button className="tw-action-card" onClick={() => fileRef.current?.click()}>
             <span className="tw-action-icon"><ImageIcon size={22} /></span>
@@ -342,11 +353,26 @@ export function THU365WebApp() {
         <section className="tw-module-screen">
           <header className="tw-preview-header">
             <button className="tw-back" onClick={() => setScreen("home")} aria-label="Quay lại"><ArrowLeft size={19}/></button>
-            <div><b>{activeModule === "album" ? "Album của tôi" : activeModule === "editor" ? "Chỉnh sửa ảnh" : activeModule === "sharp" ? "Làm nét ảnh AI" : activeModule === "beauty" ? "AI làm đẹp" : activeModule === "short-video" ? "Video ngắn" : "Hiệu ứng quốc tế"}</b><small>ANHTHU · KHÔNG GIAN RIÊNG TƯ</small></div>
+            <div><b>{activeModule === "settings" ? "Cài đặt ứng dụng" : activeModule === "profile" ? "Hồ sơ của tôi" : activeModule === "album" ? "Album của tôi" : activeModule === "editor" ? "Chỉnh sửa ảnh" : activeModule === "sharp" ? "Làm nét ảnh AI" : activeModule === "beauty" ? "AI làm đẹp" : activeModule === "short-video" ? "Video ngắn" : "Hiệu ứng quốc tế"}</b><small>ANHTHU · KHÔNG GIAN RIÊNG TƯ</small></div>
           </header>
-          <div className="tw-module-hero"><span className="tw-module-icon"><Sparkles size={28}/></span><h2>{activeModule === "album" ? "Thư viện trên thiết bị" : activeModule === "editor" ? "Công cụ chỉnh sửa ảnh" : activeModule === "sharp" ? "Khôi phục chi tiết hình ảnh" : activeModule === "beauty" ? "Làm đẹp thông minh" : activeModule === "short-video" ? "Tạo video dọc 9:16" : "Beauty effects studio"}</h2><p>{activeModule === "album" ? "Chọn ảnh hoặc video từ thư viện iPhone. AnhThu chỉ truy cập nội dung bạn chủ động chọn." : activeModule === "editor" ? "Chọn ảnh để mở quy trình chỉnh sửa. Bản hiện tại đang hoàn thiện bộ công cụ chỉnh sửa nâng cao." : activeModule === "sharp" ? "Chọn ảnh cần xử lý. AI tăng nét chuyên sâu và phục hồi chi tiết sẽ được bổ sung sau khi tích hợp mô hình chuyên dụng." : activeModule === "beauty" ? "Dùng camera để nhận diện khuôn mặt, theo dõi vùng da và áp dụng các thiết lập làm đẹp tự động hoặc thủ công." : activeModule === "short-video" ? "Quay video dọc có hiệu ứng làm đẹp realtime. Giới hạn mỗi clip 60 giây; xem lại và lưu/chia sẻ sau khi quay." : "Bộ sưu tập phong cách lấy cảm hứng từ xu hướng beauty Trung Quốc và Hàn Quốc; API thương mại cần quyền truy cập từ nhà cung cấp."}</p></div>
-          {activeModule === "beauty" || activeModule === "effects" || activeModule === "short-video" ? <button className="tw-primary" onClick={() => { setError(""); if(activeModule === "short-video"){setShortVideoMode(true);setMode("video");} setScreen("permission"); }}>{activeModule === "short-video" ? "Mở studio video ngắn" : "Mở camera studio"} <ChevronRight size={17}/></button> : <button className="tw-primary" onClick={() => fileRef.current?.click()}><ImageIcon size={17}/> {activeModule === "album" ? "Mở Album trên điện thoại" : "Chọn ảnh từ thiết bị"}</button>}
-          <div className="tw-module-foot"><ShieldCheck size={15}/> iPhone chỉ cấp quyền với ảnh bạn chọn. Ứng dụng không được phép tự đọc toàn bộ bộ nhớ.</div>
+          {activeModule === "settings" ? (
+            <div className="tw-settings-panel">
+              <div className="tw-settings-intro"><span className="tw-module-icon"><Settings size={25}/></span><h2>Chất lượng hình ảnh</h2><p>Ưu tiên độ phân giải cao và chuyển động mượt. Thiết bị có thể tự hạ cấu hình khi không hỗ trợ.</p></div>
+              <label>Độ phân giải ảnh<select value={studioSettings.photo} onChange={(e) => updateStudioSettings({photo:e.target.value})}><option value="1080">Full HD · 1080p</option><option value="4k">Tối đa thiết bị · 4K nếu hỗ trợ</option></select></label>
+              <label>Độ phân giải video<select value={studioSettings.video} onChange={(e) => updateStudioSettings({video:e.target.value})}><option value="720">HD · 720p</option><option value="1080">Full HD · 1080p (khuyên dùng)</option><option value="4k">4K · nếu camera hỗ trợ</option></select></label>
+              <label>Tốc độ khung hình<select value={studioSettings.fps} onChange={(e) => updateStudioSettings({fps:e.target.value})}><option value="30">30 FPS · tiết kiệm dung lượng</option><option value="60">60 FPS · chuyển động mượt</option></select></label>
+              <label className="tw-setting-toggle"><input type="checkbox" checked={studioSettings.mirror} onChange={(e) => updateStudioSettings({mirror:e.target.checked})}/> Lật gương camera trước khi chụp</label>
+              <div className="tw-quality-note"><b>Thiết lập quay hiện tại</b><span>Video bitrate mục tiêu: {studioSettings.video === "4k" ? "20 Mbps" : studioSettings.video === "720" ? "6 Mbps" : "12 Mbps"}</span><small>FPS và độ phân giải thực tế phụ thuộc camera, iOS, Safari và nhiệt độ thiết bị. Bitrate cao không thể khôi phục chi tiết đã mất do thiếu sáng hoặc lấy nét sai.</small></div>
+            </div>
+          ) : activeModule === "profile" ? (
+            <div className="tw-profile-panel"><div className="tw-profile-avatar">{(profileName.trim()[0] || "A").toUpperCase()}</div><h2>Hồ sơ cá nhân</h2><p>Thông tin hồ sơ được lưu cục bộ trên thiết bị này.</p><label>Tên hiển thị<input value={profileName} maxLength={32} onChange={(e) => {setProfileName(e.target.value);localStorage.setItem("anhthu-profile-name",e.target.value);}} placeholder="Nhập tên hiển thị"/></label><div className="tw-quality-note"><b>Hồ sơ trên thiết bị</b><span>Chế độ: Khách · không cần đăng nhập</span><small>AnhThu hiện chưa có tài khoản đám mây hoặc đồng bộ hồ sơ giữa nhiều thiết bị.</small></div></div>
+          ) : (
+            <>
+              <div className="tw-module-hero"><span className="tw-module-icon"><Sparkles size={28}/></span><h2>{activeModule === "album" ? "Thư viện trên thiết bị" : activeModule === "editor" ? "Công cụ chỉnh sửa ảnh" : activeModule === "sharp" ? "Khôi phục chi tiết hình ảnh" : activeModule === "beauty" ? "Làm đẹp thông minh" : activeModule === "short-video" ? "Tạo video dọc 9:16" : "Beauty effects studio"}</h2><p>{activeModule === "album" ? "Chọn ảnh hoặc video từ thư viện iPhone. AnhThu chỉ truy cập nội dung bạn chủ động chọn." : activeModule === "editor" ? "Chọn ảnh để mở quy trình chỉnh sửa. Bản hiện tại đang hoàn thiện bộ công cụ chỉnh sửa nâng cao." : activeModule === "sharp" ? "Chọn ảnh cần xử lý. AI tăng nét chuyên sâu và phục hồi chi tiết sẽ được bổ sung sau khi tích hợp mô hình chuyên dụng." : activeModule === "beauty" ? "Dùng camera để nhận diện khuôn mặt, theo dõi vùng da và áp dụng các thiết lập làm đẹp tự động ou thủ công." : activeModule === "short-video" ? "Quay video dọc có hiệu ứng làm đẹp realtime. Giới hạn mỗi clip 60 giây; xem lại và lưu/chia sẻ sau khi quay." : "Bộ sưu tập phong cách lấy cảm hứng từ xu hướng beauty Trung Quốc và Hàn Quốc; API thương mại cần quyền truy cập từ nhà cung cấp."}</p></div>
+              {activeModule === "beauty" || activeModule === "effects" || activeModule === "short-video" ? <button className="tw-primary" onClick={() => { setError(""); if(activeModule === "short-video"){setShortVideoMode(true);setMode("video");} setScreen("permission"); }}>{activeModule === "short-video" ? "Mở studio video ngắn" : "Mở camera studio"} <ChevronRight size={17}/></button> : <button className="tw-primary" onClick={() => fileRef.current?.click()}><ImageIcon size={17}/> {activeModule === "album" ? "Mở Album trên điện thoại" : "Chọn ảnh từ thiết bị"}</button>}
+              <div className="tw-module-foot"><ShieldCheck size={15}/> iPhone chỉ cấp quyền với ảnh bạn chọn. Ứng dụng không được phép tự đọc toàn bộ bộ nhớ.</div>
+            </>
+          )}
           <button className="tw-secondary" onClick={() => setScreen("home")}>Về trang chủ</button>
         </section>
       )}
@@ -377,7 +403,7 @@ export function THU365WebApp() {
               <div className="tw-brand">Anh<span>Thu</span></div>
               <button className="tw-glass" onClick={() => void startCamera(facing === "user" ? "environment" : "user")} aria-label="Đổi camera"><FlipHorizontal2 size={19} /></button>
             </header>
-            <div className="tw-live-label"><span /> {trackingStatus.toUpperCase()}</div>
+            <div className="tw-live-label"><span /> {trackingStatus.toUpperCase()} · {cameraQuality}</div>
             <div className="tw-camera-bottom">
               <div className="tw-filter-row">
                 <div className="tw-beauty-tabs"><button type="button" className={beautyPanel === "auto" ? "is-active" : ""} onClick={() => setBeautyPanel("auto")}>✨ TỰ ĐỘNG</button><button type="button" className={beautyPanel === "manual" ? "is-active" : ""} onClick={() => setBeautyPanel("manual")}>🎚 THỦ CÔNG</button><b>{beauty}%</b></div>
@@ -449,7 +475,7 @@ export function THU365WebApp() {
         .tw-action-copy{display:flex;flex:1;flex-direction:column;gap:5px}.tw-action-copy b{font-size:13px}.tw-action-copy small{color:#aaa09c;font-size:10px}
         .tw-action-card>svg:last-child{color:#c6a49b}.tw-privacy-note{display:flex;gap:9px;margin-top:22px;padding:13px;border:1px solid #ffffff12;border-radius:13px;color:#aaa09c;font-size:10px;line-height:1.5}
         .tw-privacy-note svg{flex:0 0 auto;color:#e5b6aa}.tw-privacy-note b{color:#e9d9d3}.tw-footer{position:absolute;bottom:max(14px,env(safe-area-inset-bottom));left:22px;color:#625b58;font-size:8px;letter-spacing:.14em}
-        .tw-hidden{display:none}.tw-module-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0 13px}.tw-module-card{min-height:126px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:15px;border:1px solid #ffffff16;border-radius:16px;background:#151313;color:#f6f0ec;text-align:left}.tw-module-card b{font-size:12px}.tw-module-card small{color:#aaa09c;font-size:9px;line-height:1.4}.tw-module-feature{border-color:#e5b6aa66;background:linear-gradient(145deg,#2a1d1b,#151313)}.tw-module-icon{width:39px;height:39px;display:grid;place-items:center;border-radius:12px;background:#e5b6aa18;color:#e5b6aa}.tw-module-screen{width:100%;max-width:520px;min-height:100dvh;margin:auto;padding:max(22px,env(safe-area-inset-top)) 22px max(25px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:18px}.tw-module-hero{flex:1;min-height:280px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:24px;border:1px solid #ffffff16;border-radius:20px;background:radial-gradient(ellipse at 80% 20%,#563c37 0,transparent 48%),#151313}.tw-module-hero h2{margin:22px 0 8px;font:500 30px/1.08 Georgia,serif}.tw-module-hero p{color:#b3a7a2;font-size:12px;line-height:1.7}.tw-module-foot{display:flex;gap:9px;color:#aaa09c;font-size:10px;line-height:1.5}.tw-module-foot svg{flex:0 0 auto;color:#e5b6aa}.tw-back,.tw-glass{width:40px;height:40px;display:grid;place-items:center;border:1px solid #ffffff20;border-radius:50%;background:#ffffff0b;color:#f6f0ec}
+        .tw-hidden{display:none}.tw-module-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0 13px}.tw-module-card{min-height:126px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:15px;border:1px solid #ffffff16;border-radius:16px;background:#151313;color:#f6f0ec;text-align:left}.tw-module-card b{font-size:12px}.tw-module-card small{color:#aaa09c;font-size:9px;line-height:1.4}.tw-module-feature{border-color:#e5b6aa66;background:linear-gradient(145deg,#2a1d1b,#151313)}.tw-module-icon{width:39px;height:39px;display:grid;place-items:center;border-radius:12px;background:#e5b6aa18;color:#e5b6aa}.tw-module-screen{width:100%;max-width:520px;min-height:100dvh;margin:auto;padding:max(22px,env(safe-area-inset-top)) 22px max(25px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:18px}.tw-module-hero{flex:1;min-height:280px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:24px;border:1px solid #ffffff16;border-radius:20px;background:radial-gradient(ellipse at 80% 20%,#563c37 0,transparent 48%),#151313}.tw-module-hero h2{margin:22px 0 8px;font:500 30px/1.08 Georgia,serif}.tw-module-hero p{color:#b3a7a2;font-size:12px;line-height:1.7}.tw-module-foot{display:flex;gap:9px;color:#aaa09c;font-size:10px;line-height:1.5}.tw-module-foot svg{flex:0 0 auto;color:#e5b6aa}.tw-settings-panel,.tw-profile-panel{display:flex;flex-direction:column;gap:15px;padding:18px;border:1px solid #ffffff16;border-radius:18px;background:#151313}.tw-settings-intro h2,.tw-profile-panel h2{font:500 25px Georgia,serif;margin:13px 0 5px}.tw-settings-intro p,.tw-profile-panel p{margin:0;color:#aaa09c;font-size:10px;line-height:1.6}.tw-settings-panel>label,.tw-profile-panel>label{display:flex;flex-direction:column;gap:8px;color:#e5d7d1;font-size:11px}.tw-settings-panel select,.tw-profile-panel input{width:100%;min-height:43px;padding:0 12px;border:1px solid #ffffff24;border-radius:10px;background:#211c1b;color:#f6f0ec;font-size:12px}.tw-setting-toggle{display:flex!important;flex-direction:row!important;align-items:center}.tw-setting-toggle input{accent-color:#e5b6aa}.tw-quality-note{display:flex;flex-direction:column;gap:7px;padding:13px;border:1px solid #e5b6aa35;border-radius:12px;background:#e5b6aa0b;color:#cbbab4;font-size:10px;line-height:1.5}.tw-quality-note b{color:#f0d8d0}.tw-quality-note small{color:#9f918b;font-size:9px}.tw-profile-avatar{width:72px;height:72px;display:grid;place-items:center;border:1px solid #e5b6aa66;border-radius:50%;background:#e5b6aa20;color:#e5b6aa;font:500 30px Georgia,serif}.tw-back,.tw-glass{width:40px;height:40px;display:grid;place-items:center;border:1px solid #ffffff20;border-radius:50%;background:#ffffff0b;color:#f6f0ec}
         .tw-permission>.tw-back{margin-bottom:40px}.tw-permission>p{margin:15px 0 25px}
         .tw-permission-item{display:flex;align-items:center;gap:12px;padding:15px 0;border-bottom:1px solid #ffffff14}.tw-permission-item>svg{color:#e5b6aa}
         .tw-permission-item div{display:flex;flex:1;flex-direction:column;gap:5px}.tw-permission-item b{font-size:12px}.tw-permission-item small{color:#aaa09c;font-size:10px}
