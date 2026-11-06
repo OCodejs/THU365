@@ -6,7 +6,7 @@ import {
   Video, X, Zap
 } from "lucide-react";
 
-type Screen = "home" | "permission" | "camera" | "preview";
+type Screen = "home" | "module" | "permission" | "camera" | "preview";
 type MediaKind = "image" | "video";
 type CameraFacing = "user" | "environment";
 type BeautyPreset = { id: string; name: string; filter: string; description: string };
@@ -28,6 +28,7 @@ const BEAUTY_PRESETS: BeautyPreset[] = [
 
 export function THU365WebApp() {
   const [screen, setScreen] = useState<Screen>("home");
+  const [activeModule, setActiveModule] = useState("album");
   const [facing, setFacing] = useState<CameraFacing>("user");
   const [mode, setMode] = useState<MediaKind>("image");
   const [beauty, setBeauty] = useState(35);
@@ -35,7 +36,7 @@ export function THU365WebApp() {
   const [autoProfile, setAutoProfile] = useState("natural");
   const [arSettings, setArSettings] = useState<FaceARSettings>({ smooth: 35, lipstick: "rgba(190,48,83,.9)", blush: "rgba(238,105,135,.8)", eyeliner: false, hairTint: "none", sticker: "none", light: "soft" });
   const [trackingStatus, setTrackingStatus] = useState("Đang chờ camera");
-  const [savedPresets, setSavedPresets] = useState<Array<{name:string;settings:FaceARSettings}>>(() => { try { return JSON.parse(localStorage.getItem("thu365-ar-presets") || "[]"); } catch { return []; } });
+  const [savedPresets, setSavedPresets] = useState<Array<{name:string;settings:FaceARSettings}>>(() => { try { return JSON.parse(localStorage.getItem("anhthu-ar-presets") || localStorage.getItem("thu365-ar-presets") || "[]"); } catch { return []; } });
   const [preset, setPreset] = useState("natural");
   const activePreset = BEAUTY_PRESETS.find((item) => item.id === preset) ?? BEAUTY_PRESETS[0];
   const [recording, setRecording] = useState(false);
@@ -75,13 +76,13 @@ export function THU365WebApp() {
     setTrackingStatus("Đang tải mô hình nhận diện");
     void createTHU365FaceTracker().then((loaded) => {
       if (!active) { loaded.close(); return; }
-      tracker = loaded; trackerRef.current = loaded; setTrackingStatus("AI Face Tracking đang hoạt động");
+      tracker = loaded; trackerRef.current = loaded; setTrackingStatus(loaded.segmentationEnabled ? "AI Face + Skin Segmentation đang hoạt động" : "AI Face hoạt động · Skin AI dự phòng");
       const tick = () => {
         if (!active) return;
         const video = videoRef.current, canvas = arCanvasRef.current;
         if (video && canvas && video.readyState >= 2 && video.currentTime !== last) {
           last = video.currentTime;
-          try { const result = tracker.detectForVideo(video, performance.now()); renderFaceAR(canvas, video, result, arSettings, `${activePreset.filter} brightness(${1 + beauty / 650}) saturate(${1 + beauty / 500})`); setTrackingStatus(result.faceLandmarks?.length ? "Đã nhận diện khuôn mặt" : "Đưa khuôn mặt vào khung hình"); } catch { setTrackingStatus("Đang khởi tạo theo dõi"); }
+          try { const result = tracker.detectForVideo(video, performance.now()); renderFaceAR(canvas, video, result, arSettings, `${activePreset.filter} brightness(${1 + beauty / 650}) saturate(${1 + beauty / 500})`); setTrackingStatus(result.faceLandmarks?.length ? (tracker.segmentationEnabled ? "AI đã nhận diện mặt + vùng da" : "Đã nhận diện khuôn mặt · Skin AI dự phòng") : "Đưa khuôn mặt vào khung hình"); } catch { setTrackingStatus("Đang khởi tạo theo dõi"); }
         }
         raf = requestAnimationFrame(tick);
       }; tick();
@@ -103,7 +104,7 @@ export function THU365WebApp() {
   function saveARPreset() {
     const name = window.prompt("Tên preset cá nhân?"); if (!name?.trim()) return;
     const next = [...savedPresets.filter((item) => item.name !== name.trim()), { name: name.trim(), settings: arSettings }].slice(-12);
-    setSavedPresets(next); localStorage.setItem("thu365-ar-presets", JSON.stringify(next)); showNotice("Đã lưu preset trên thiết bị");
+    setSavedPresets(next); localStorage.setItem("anhthu-ar-presets", JSON.stringify(next)); showNotice("Đã lưu preset trên thiết bị");
   }
 
   function stopCamera() {
@@ -119,7 +120,7 @@ export function THU365WebApp() {
   async function startCamera(nextFacing = facing) {
     setError("");
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-      setError("Camera cần Safari/Chrome hiện đại và kết nối HTTPS. Hãy mở THU365 bằng Safari.");
+      setError("Camera cần Safari/Chrome hiện đại và kết nối HTTPS. Hãy mở AnhThu bằng Safari.");
       return;
     }
     try {
@@ -176,7 +177,7 @@ export function THU365WebApp() {
       stopCamera();
       setMediaBlob(blob);
       setMediaType("image");
-      setMediaName(`thu365-${Date.now()}.jpg`);
+      setMediaName(`anhthu-${Date.now()}.jpg`);
       setMediaUrl(URL.createObjectURL(blob));
       setScreen("preview");
     }, "image/jpeg", 0.94);
@@ -210,7 +211,7 @@ export function THU365WebApp() {
         audioStreamRef.current = null;
         setMediaBlob(blob);
         setMediaType("video");
-        setMediaName(`thu365-${Date.now()}.${type.includes("mp4") ? "mp4" : "webm"}`);
+        setMediaName(`anhthu-${Date.now()}.${type.includes("mp4") ? "mp4" : "webm"}`);
         setMediaUrl(URL.createObjectURL(blob));
         stopCamera();
         setScreen("preview");
@@ -255,7 +256,7 @@ export function THU365WebApp() {
     const file = new File([mediaBlob], mediaName, { type: mediaBlob.type || (mediaType === "image" ? "image/jpeg" : "video/mp4") });
     try {
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: "THU365 Beauty" });
+        await navigator.share({ files: [file], title: "AnhThu Beauty" });
         return;
       }
     } catch (cause) {
@@ -289,7 +290,7 @@ export function THU365WebApp() {
       {screen === "home" && (
         <section className="tw-home">
           <header className="tw-header">
-            <div className="tw-brand">THU<span>365</span></div>
+            <div className="tw-brand">Anh<span>Thu</span></div>
             <div className="tw-private"><LockKeyhole size={12} /> RIÊNG TƯ TRƯỚC TIÊN</div>
           </header>
           <div className="tw-hero">
@@ -301,19 +302,35 @@ export function THU365WebApp() {
             </div>
             <div className="tw-hero-mark"><Aperture size={74} strokeWidth={0.8} /></div>
           </div>
-          <div className="tw-section-head"><strong>Bắt đầu sáng tạo</strong><span>THIẾT BỊ CỦA BẠN</span></div>
-          <button className="tw-action-card tw-camera-card" onClick={() => { setError(""); setScreen("permission"); }}>
-            <span className="tw-action-icon"><Camera size={22} /></span>
-            <span className="tw-action-copy"><b>Mở camera</b><small>Chụp ảnh hoặc quay video bằng camera thật</small></span>
-            <ChevronRight size={18} />
-          </button>
+          <div className="tw-section-head"><strong>Không gian sáng tạo</strong><span>ANHTHU STUDIO</span></div>
+          <div className="tw-module-grid">
+            <button className="tw-module-card tw-module-feature" onClick={() => { setError(""); setScreen("permission"); }}><span className="tw-module-icon"><Camera size={22}/></span><b>Camera làm đẹp</b><small>Chụp ảnh · quay video · AR trực tiếp</small></button>
+            <button className="tw-module-card" onClick={() => { setActiveModule("album"); setScreen("module"); }}><span className="tw-module-icon"><ImageIcon size={22}/></span><b>Album</b><small>Ảnh và video trên điện thoại</small></button>
+            <button className="tw-module-card" onClick={() => { setActiveModule("editor"); setScreen("module"); }}><span className="tw-module-icon"><Aperture size={22}/></span><b>Chỉnh sửa ảnh</b><small>Cắt, màu sắc và ánh sáng</small></button>
+            <button className="tw-module-card" onClick={() => { setActiveModule("sharp"); setScreen("module"); }}><span className="tw-module-icon"><Zap size={22}/></span><b>Làm nét ảnh AI</b><small>Phục hồi ảnh mờ · giảm nhiễu</small></button>
+            <button className="tw-module-card" onClick={() => { setActiveModule("beauty"); setScreen("module"); }}><span className="tw-module-icon"><Sparkles size={22}/></span><b>AI làm đẹp</b><small>Da, makeup và nhận diện khuôn mặt</small></button>
+            <button className="tw-module-card" onClick={() => { setActiveModule("effects"); setScreen("module"); }}><span className="tw-module-icon"><Check size={22}/></span><b>Hiệu ứng quốc tế</b><small>Phong cách Trung Quốc · Hàn Quốc</small></button>
+          </div>
           <button className="tw-action-card" onClick={() => fileRef.current?.click()}>
             <span className="tw-action-icon"><ImageIcon size={22} /></span>
-            <span className="tw-action-copy"><b>Chọn ảnh hoặc video</b><small>Mở thư viện trên iPhone hoặc Android</small></span>
+            <span className="tw-action-copy"><b>Chọn nhanh ảnh hoặc video</b><small>Mở bộ chọn ảnh an toàn của iOS / Android</small></span>
             <ChevronRight size={18} />
           </button>
           <div className="tw-privacy-note"><ShieldCheck size={15} /><span><b>Riêng tư mặc định.</b> Ảnh/video chỉ ở trong trình duyệt, không tải lên máy chủ. Hãy lưu tệp trước khi đóng ứng dụng.</span></div>
-          <footer className="tw-footer">THU365 BEAUTY · BẢN DÙNG THỬ PWA</footer>
+          <footer className="tw-footer">ANHTHU BEAUTY · BẢN DÙNG THỬ PWA</footer>
+        </section>
+      )}
+
+      {screen === "module" && (
+        <section className="tw-module-screen">
+          <header className="tw-preview-header">
+            <button className="tw-back" onClick={() => setScreen("home")} aria-label="Quay lại"><ArrowLeft size={19}/></button>
+            <div><b>{activeModule === "album" ? "Album của tôi" : activeModule === "editor" ? "Chỉnh sửa ảnh" : activeModule === "sharp" ? "Làm nét ảnh AI" : activeModule === "beauty" ? "AI làm đẹp" : "Hiệu ứng quốc tế"}</b><small>ANHTHU · KHÔNG GIAN RIÊNG TƯ</small></div>
+          </header>
+          <div className="tw-module-hero"><span className="tw-module-icon"><Sparkles size={28}/></span><h2>{activeModule === "album" ? "Thư viện trên thiết bị" : activeModule === "editor" ? "Công cụ chỉnh sửa ảnh" : activeModule === "sharp" ? "Khôi phục chi tiết hình ảnh" : activeModule === "beauty" ? "Làm đẹp thông minh" : "Beauty effects studio"}</h2><p>{activeModule === "album" ? "Chọn ảnh hoặc video từ thư viện iPhone. AnhThu chỉ truy cập nội dung bạn chủ động chọn." : activeModule === "editor" ? "Chọn ảnh để mở quy trình chỉnh sửa. Bản hiện tại đang hoàn thiện bộ công cụ chỉnh sửa nâng cao." : activeModule === "sharp" ? "Chọn ảnh cần xử lý. AI tăng nét chuyên sâu và phục hồi chi tiết sẽ được bổ sung sau khi tích hợp mô hình chuyên dụng." : activeModule === "beauty" ? "Dùng camera để nhận diện khuôn mặt, theo dõi vùng da và áp dụng các thiết lập làm đẹp tự động hoặc thủ công." : "Bộ sưu tập phong cách lấy cảm hứng từ xu hướng beauty Trung Quốc và Hàn Quốc; API thương mại cần quyền truy cập từ nhà cung cấp."}</p></div>
+          {activeModule === "beauty" || activeModule === "effects" ? <button className="tw-primary" onClick={() => { setError(""); setScreen("permission"); }}>Mở camera studio <ChevronRight size={17}/></button> : <button className="tw-primary" onClick={() => fileRef.current?.click()}><ImageIcon size={17}/> {activeModule === "album" ? "Mở Album trên điện thoại" : "Chọn ảnh từ thiết bị"}</button>}
+          <div className="tw-module-foot"><ShieldCheck size={15}/> iPhone chỉ cấp quyền với ảnh bạn chọn. Ứng dụng không được phép tự đọc toàn bộ bộ nhớ.</div>
+          <button className="tw-secondary" onClick={() => setScreen("home")}>Về trang chủ</button>
         </section>
       )}
 
@@ -322,7 +339,7 @@ export function THU365WebApp() {
           <button className="tw-back" onClick={() => setScreen("home")} aria-label="Quay lại"><ArrowLeft size={19} /></button>
           <div className="tw-eyebrow"><ShieldCheck size={13} /> QUYỀN TRUY CẬP THIẾT BỊ</div>
           <h1>Camera chỉ bật<br /><em>khi bạn sẵn sàng.</em></h1>
-          <p>THU365 cần camera để hiển thị hình ảnh trực tiếp và chụp ảnh. Trình duyệt sẽ hỏi quyền sau khi bạn tiếp tục.</p>
+          <p>AnhThu cần camera để hiển thị hình ảnh trực tiếp và chụp ảnh. Trình duyệt sẽ hỏi quyền sau khi bạn tiếp tục.</p>
           <div className="tw-permission-item"><Camera size={19} /><div><b>Camera</b><small>Cần thiết để chụp ảnh và quay video.</small></div><span>BẮT BUỘC</span></div>
           <div className="tw-permission-item"><Mic size={19} /><div><b>Microphone</b><small>Chỉ hỏi khi bạn chọn quay video có tiếng.</small></div><span>TÙY CHỌN</span></div>
           <div className="tw-permission-item"><ImageIcon size={19} /><div><b>Thư viện ảnh</b><small>Chỉ mở khi bạn tự chọn ảnh/video.</small></div><span>TÙY CHỌN</span></div>
@@ -347,7 +364,7 @@ export function THU365WebApp() {
             <div className="tw-camera-bottom">
               <div className="tw-filter-row">
                 <div className="tw-beauty-tabs"><button type="button" className={beautyPanel === "auto" ? "is-active" : ""} onClick={() => setBeautyPanel("auto")}>✨ TỰ ĐỘNG</button><button type="button" className={beautyPanel === "manual" ? "is-active" : ""} onClick={() => setBeautyPanel("manual")}>🎚 THỦ CÔNG</button><b>{beauty}%</b></div>
-                {beautyPanel === "auto" ? <div className="tw-auto-beauty"><p>Chọn phong cách · THU365 tự áp dụng bộ thông số làm đẹp</p><div className="tw-auto-profiles"><button onClick={() => applyAutoBeauty("natural")} className={autoProfile === "natural" ? "is-active" : ""}>Natural</button><button onClick={() => applyAutoBeauty("cloud")} className={autoProfile === "cloud" ? "is-active" : ""}>Cloud Skin</button><button onClick={() => applyAutoBeauty("softglam")} className={autoProfile === "softglam" ? "is-active" : ""}>Soft Glam</button><button onClick={() => applyAutoBeauty("peach")} className={autoProfile === "peach" ? "is-active" : ""}>Peach Glow</button></div><button className="tw-auto-apply" onClick={() => applyAutoBeauty()}>✨ Auto setup làm đẹp</button></div> : <div className="tw-manual-beauty"><div className="tw-manual-head"><span>ĐIỀU CHỈNH THỦ CÔNG</span><button type="button" onClick={() => {setBeauty(0);setArSettings({smooth:0,lipstick:"none",blush:"none",eyeliner:false,hairTint:"none",sticker:"none",light:"none"});}}>Đặt lại</button></div><label>Độ mịn da <input type="range" min="0" max="100" value={arSettings.smooth} onChange={(e) => setArSettings(v => ({...v,smooth:Number(e.target.value)}))}/><small>{arSettings.smooth}%</small></label><label>Ánh sáng & màu <input type="range" min="0" max="100" value={beauty} onChange={(e) => setBeauty(Number(e.target.value))}/><small>{beauty}%</small></label></div>}
+                {beautyPanel === "auto" ? <div className="tw-auto-beauty"><p>Chọn phong cách · AnhThu tự áp dụng bộ thông số làm đẹp</p><div className="tw-auto-profiles"><button onClick={() => applyAutoBeauty("natural")} className={autoProfile === "natural" ? "is-active" : ""}>Natural</button><button onClick={() => applyAutoBeauty("cloud")} className={autoProfile === "cloud" ? "is-active" : ""}>Cloud Skin</button><button onClick={() => applyAutoBeauty("softglam")} className={autoProfile === "softglam" ? "is-active" : ""}>Soft Glam</button><button onClick={() => applyAutoBeauty("peach")} className={autoProfile === "peach" ? "is-active" : ""}>Peach Glow</button></div><button className="tw-auto-apply" onClick={() => applyAutoBeauty()}>✨ Auto setup làm đẹp</button></div> : <div className="tw-manual-beauty"><div className="tw-manual-head"><span>ĐIỀU CHỈNH THỦ CÔNG</span><button type="button" onClick={() => {setBeauty(0);setArSettings({smooth:0,lipstick:"none",blush:"none",eyeliner:false,hairTint:"none",sticker:"none",light:"none"});}}>Đặt lại</button></div><label>Độ mịn da <input type="range" min="0" max="100" value={arSettings.smooth} onChange={(e) => setArSettings(v => ({...v,smooth:Number(e.target.value)}))}/><small>{arSettings.smooth}%</small></label><label>Ánh sáng & màu <input type="range" min="0" max="100" value={beauty} onChange={(e) => setBeauty(Number(e.target.value))}/><small>{beauty}%</small></label></div>}
                 <div className="tw-ar-tools"><label>SON <select value={arSettings.lipstick} onChange={(e) => setArSettings(v => ({...v, lipstick:e.target.value}))}><option value="none">Tắt</option><option value="rgba(190,48,83,.9)">Đỏ cherry</option><option value="rgba(190,95,105,.9)">Hồng đất</option><option value="rgba(145,70,105,.9)">Mận</option></select></label><label>MÁ HỒNG <select value={arSettings.blush} onChange={(e) => setArSettings(v => ({...v, blush:e.target.value}))}><option value="none">Tắt</option><option value="rgba(238,105,135,.8)">Rose</option><option value="rgba(240,150,105,.8)">Peach</option></select></label><label><input type="checkbox" checked={arSettings.eyeliner} onChange={(e) => setArSettings(v => ({...v, eyeliner:e.target.checked}))}/> Eyeliner</label><label>TÓC <select value={arSettings.hairTint} onChange={(e) => setArSettings(v => ({...v, hairTint:e.target.value}))}><option value="none">Tự nhiên</option><option value="#8b4d2d">Nâu</option><option value="#c69a45">Vàng</option><option value="#7b477e">Tím</option></select></label><label>STICKER <select value={arSettings.sticker} onChange={(e) => setArSettings(v => ({...v, sticker:e.target.value as FaceARSettings["sticker"]}))}><option value="none">Tắt</option><option value="hearts">Hearts</option><option value="sunglasses">Sunglasses</option><option value="sparkles">Sparkles</option></select></label><label>ÁNH SÁNG <select value={arSettings.light} onChange={(e) => setArSettings(v => ({...v, light:e.target.value as FaceARSettings["light"]}))}><option value="none">Tắt</option><option value="soft">Soft</option><option value="golden">Golden</option><option value="studio">Studio</option></select></label><button type="button" onClick={saveARPreset}>Lưu preset</button>{savedPresets.map((item) => <button type="button" key={item.name} onClick={() => setArSettings(item.settings)}>{item.name}</button>)}</div>
                 <div className="tw-preset-strip" aria-label="Chọn hiệu ứng làm đẹp">{BEAUTY_PRESETS.map((item) => <button key={item.id} type="button" className={`tw-preset ${preset === item.id ? "is-active" : ""}`} onClick={() => setPreset(item.id)} aria-pressed={preset === item.id}><span className={`tw-preset-swatch swatch-${item.id}`} /><small>{item.name}</small></button>)}</div>
                 <input aria-label="Cường độ làm đẹp" type="range" min="0" max="100" value={beauty} onChange={(event) => setBeauty(Number(event.target.value))} />
@@ -415,7 +432,7 @@ export function THU365WebApp() {
         .tw-action-copy{display:flex;flex:1;flex-direction:column;gap:5px}.tw-action-copy b{font-size:13px}.tw-action-copy small{color:#aaa09c;font-size:10px}
         .tw-action-card>svg:last-child{color:#c6a49b}.tw-privacy-note{display:flex;gap:9px;margin-top:22px;padding:13px;border:1px solid #ffffff12;border-radius:13px;color:#aaa09c;font-size:10px;line-height:1.5}
         .tw-privacy-note svg{flex:0 0 auto;color:#e5b6aa}.tw-privacy-note b{color:#e9d9d3}.tw-footer{position:absolute;bottom:max(14px,env(safe-area-inset-bottom));left:22px;color:#625b58;font-size:8px;letter-spacing:.14em}
-        .tw-hidden{display:none}.tw-back,.tw-glass{width:40px;height:40px;display:grid;place-items:center;border:1px solid #ffffff20;border-radius:50%;background:#ffffff0b;color:#f6f0ec}
+        .tw-hidden{display:none}.tw-module-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0 13px}.tw-module-card{min-height:126px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:15px;border:1px solid #ffffff16;border-radius:16px;background:#151313;color:#f6f0ec;text-align:left}.tw-module-card b{font-size:12px}.tw-module-card small{color:#aaa09c;font-size:9px;line-height:1.4}.tw-module-feature{border-color:#e5b6aa66;background:linear-gradient(145deg,#2a1d1b,#151313)}.tw-module-icon{width:39px;height:39px;display:grid;place-items:center;border-radius:12px;background:#e5b6aa18;color:#e5b6aa}.tw-module-screen{width:100%;max-width:520px;min-height:100dvh;margin:auto;padding:max(22px,env(safe-area-inset-top)) 22px max(25px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:18px}.tw-module-hero{flex:1;min-height:280px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:24px;border:1px solid #ffffff16;border-radius:20px;background:radial-gradient(ellipse at 80% 20%,#563c37 0,transparent 48%),#151313}.tw-module-hero h2{margin:22px 0 8px;font:500 30px/1.08 Georgia,serif}.tw-module-hero p{color:#b3a7a2;font-size:12px;line-height:1.7}.tw-module-foot{display:flex;gap:9px;color:#aaa09c;font-size:10px;line-height:1.5}.tw-module-foot svg{flex:0 0 auto;color:#e5b6aa}.tw-back,.tw-glass{width:40px;height:40px;display:grid;place-items:center;border:1px solid #ffffff20;border-radius:50%;background:#ffffff0b;color:#f6f0ec}
         .tw-permission>.tw-back{margin-bottom:40px}.tw-permission>p{margin:15px 0 25px}
         .tw-permission-item{display:flex;align-items:center;gap:12px;padding:15px 0;border-bottom:1px solid #ffffff14}.tw-permission-item>svg{color:#e5b6aa}
         .tw-permission-item div{display:flex;flex:1;flex-direction:column;gap:5px}.tw-permission-item b{font-size:12px}.tw-permission-item small{color:#aaa09c;font-size:10px}

@@ -31,7 +31,7 @@ export function THU365PWA() {
   const safari = isSafariBrowser();
 
   useEffect(() => {
-    document.title = "THU365 Beauty Camera";
+    document.title = "AnhThu Beauty Camera";
     document.documentElement.lang = "vi";
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#0a0a0b");
 
@@ -53,7 +53,7 @@ export function THU365PWA() {
 
     if ("serviceWorker" in navigator && window.isSecureContext) {
       void navigator.serviceWorker.register("/thu365/sw.js", { scope: "/thu365/" })
-        .catch((error: unknown) => console.warn("THU365 offline support unavailable:", error));
+        .catch((error: unknown) => console.warn("AnhThu offline support unavailable:", error));
     }
 
     const handlePrompt = (event: Event) => {
@@ -99,10 +99,10 @@ export function THU365PWA() {
   return (
     <>
       <THU365WebApp />
-      <div className="thu365-pwa-install" role="region" aria-label="Cài đặt THU365">
+      <div className="thu365-pwa-install" role="region" aria-label="Cài đặt AnhThu">
         {!online && <span className="thu365-pwa-offline"><WifiOff size={13} /> Đang ngoại tuyến</span>}
         <div className="thu365-pwa-install-copy">
-          <strong>THU365 trên màn hình chính</strong>
+          <strong>AnhThu trên màn hình chính</strong>
           <span>Cài như một ứng dụng, mở toàn màn hình.</span>
         </div>
         <button type="button" onClick={() => void installApp()}>
@@ -123,7 +123,7 @@ export function THU365PWA() {
               <X size={19} />
             </button>
             <div className="thu365-pwa-mark">THU<span>365</span></div>
-            <h2 id="thu365-pwa-title">Đưa THU365 lên màn hình chính</h2>
+            <h2 id="thu365-pwa-title">Đưa AnhThu lên màn hình chính</h2>
             {ios && !safari ? (
               <ol>
                 <li><ExternalLink size={18} /><span>Mở menu chia sẻ của trình duyệt này và chọn <b>Mở trong Safari</b>.</span></li>
@@ -140,10 +140,10 @@ export function THU365PWA() {
               <ol>
                 <li><span>Mở menu trình duyệt (dấu ba chấm).</span></li>
                 <li><span>Chọn <b>Cài đặt ứng dụng</b> hoặc <b>Thêm vào màn hình chính</b>.</span></li>
-                <li><span>Xác nhận cài đặt THU365.</span></li>
+                <li><span>Xác nhận cài đặt AnhThu.</span></li>
               </ol>
             )}
-            <p>THU365 chỉ lưu bộ khung ứng dụng để mở lại nhanh. Ảnh và video không được tải lên máy chủ bởi bản PWA này.</p>
+            <p>AnhThu chỉ lưu bộ khung ứng dụng để mở lại nhanh. Ảnh và video không được tải lên máy chủ bởi bản PWA này.</p>
             <button className="thu365-pwa-done" type="button" onClick={() => setShowGuide(false)}>Đã hiểu</button>
           </section>
         </div>
