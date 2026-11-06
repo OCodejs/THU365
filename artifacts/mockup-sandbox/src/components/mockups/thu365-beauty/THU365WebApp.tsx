@@ -8,12 +8,26 @@ import {
 type Screen = "home" | "permission" | "camera" | "preview";
 type MediaKind = "image" | "video";
 type CameraFacing = "user" | "environment";
+type BeautyPreset = { id: string; name: string; filter: string; description: string };
+const BEAUTY_PRESETS: BeautyPreset[] = [
+  { id: "natural", name: "Natural", filter: "brightness(1.04) saturate(1.08) contrast(1.02)", description: "Da tự nhiên, ánh sáng dịu" },
+  { id: "glass", name: "Glass Skin", filter: "brightness(1.12) saturate(1.08) contrast(.94)", description: "Hiệu ứng sáng trong kiểu glass skin" },
+  { id: "soft", name: "Soft Glam", filter: "brightness(1.08) saturate(1.13) contrast(1.04) sepia(.04)", description: "Tông makeup mềm, ấm" },
+  { id: "rose", name: "Rose", filter: "brightness(1.05) saturate(1.16) sepia(.12) hue-rotate(330deg)", description: "Hồng đào nhẹ nhàng" },
+  { id: "latte", name: "Latte", filter: "brightness(1.04) saturate(.88) sepia(.2) contrast(1.04)", description: "Nâu sữa ấm áp" },
+  { id: "cool", name: "Cool", filter: "brightness(1.06) saturate(.92) hue-rotate(9deg) contrast(1.06)", description: "Trong trẻo, tông lạnh" },
+  { id: "film", name: "Film", filter: "brightness(1.02) saturate(.78) sepia(.16) contrast(1.12)", description: "Màu film hoài cổ" },
+  { id: "glow", name: "Golden", filter: "brightness(1.1) saturate(1.18) sepia(.1)", description: "Ánh vàng rực rỡ" },
+  { id: "mono", name: "Mono", filter: "grayscale(1) contrast(1.12)", description: "Đen trắng tối giản" }
+];
 
 export function THU365WebApp() {
   const [screen, setScreen] = useState<Screen>("home");
   const [facing, setFacing] = useState<CameraFacing>("user");
   const [mode, setMode] = useState<MediaKind>("image");
   const [beauty, setBeauty] = useState(35);
+  const [preset, setPreset] = useState("natural");
+  const activePreset = BEAUTY_PRESETS.find((item) => item.id === preset) ?? BEAUTY_PRESETS[0];
   const [recording, setRecording] = useState(false);
   const [micGuide, setMicGuide] = useState(false);
   const [error, setError] = useState("");
@@ -102,7 +116,7 @@ export function THU365WebApp() {
       context.translate(canvas.width, 0);
       context.scale(-1, 1);
     }
-    context.filter = `brightness(${1 + beauty / 500}) saturate(${1 + beauty / 250})`;
+    context.filter = `${activePreset.filter} brightness(${1 + beauty / 650}) saturate(${1 + beauty / 500})`;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     canvas.toBlob((blob) => {
       if (!blob) {
@@ -272,7 +286,7 @@ export function THU365WebApp() {
       {screen === "camera" && (
         <section className="tw-camera-screen">
           <div className="tw-camera-view">
-            <video ref={videoRef} autoPlay muted playsInline className="tw-live-video" style={{ filter: `brightness(${1 + beauty / 500}) saturate(${1 + beauty / 250})`, transform: facing === "user" ? "scaleX(-1)" : "none" }} />
+            <video ref={videoRef} autoPlay muted playsInline className="tw-live-video" style={{ filter: `${activePreset.filter} brightness(${1 + beauty / 650}) saturate(${1 + beauty / 500})`, transform: facing === "user" ? "scaleX(-1)" : "none" }} />
             <div className="tw-live-shade" />
             <header className="tw-camera-header">
               <button className="tw-glass" onClick={returnHome} aria-label="Đóng camera"><ArrowLeft size={19} /></button>
@@ -282,7 +296,8 @@ export function THU365WebApp() {
             <div className="tw-live-label"><span /> CAMERA TRỰC TIẾP</div>
             <div className="tw-camera-bottom">
               <div className="tw-filter-row">
-                <div><span>ĐIỀU CHỈNH LÀM ĐẸP</span><b>{beauty}%</b></div>
+                <div><span>HIỆU ỨNG · {activePreset.description}</span><b>{beauty}%</b></div>
+                <div className="tw-preset-strip" aria-label="Chọn hiệu ứng làm đẹp">{BEAUTY_PRESETS.map((item) => <button key={item.id} type="button" className={`tw-preset ${preset === item.id ? "is-active" : ""}`} onClick={() => setPreset(item.id)} aria-pressed={preset === item.id}><span className={`tw-preset-swatch swatch-${item.id}`} /><small>{item.name}</small></button>)}</div>
                 <input aria-label="Cường độ làm đẹp" type="range" min="0" max="100" value={beauty} onChange={(event) => setBeauty(Number(event.target.value))} />
               </div>
               <div className="tw-capture-row">
@@ -365,6 +380,8 @@ export function THU365WebApp() {
         .tw-filter-row{padding:12px 14px;margin-bottom:23px;border:1px solid #ffffff1b;border-radius:14px;background:#161313c9;backdrop-filter:blur(15px)}
         .tw-filter-row>div{display:flex;justify-content:space-between;margin-bottom:10px;color:#c7b9b3;font-size:8px;letter-spacing:.1em}.tw-filter-row b{color:#e5b6aa;font-size:10px}
         .tw-filter-row input{width:100%;accent-color:#e5b6aa}
+        .tw-preset-strip{display:flex;gap:9px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.tw-preset-strip::-webkit-scrollbar{display:none}
+        .tw-preset{flex:0 0 58px;display:flex;flex-direction:column;align-items:center;gap:6px;border:0;background:transparent;color:#cfc4bf;padding:3px 0;font-size:8px}.tw-preset small{font-size:8px;white-space:nowrap}.tw-preset-swatch{width:43px;height:43px;border:2px solid #ffffff40;border-radius:50%;background:linear-gradient(145deg,#f1c7b7,#9b655e 48%,#30211f);box-shadow:inset 0 0 0 2px #171313}.tw-preset.is-active .tw-preset-swatch{border-color:#e5b6aa;box-shadow:0 0 0 2px #e5b6aa55}.tw-preset.is-active small{color:#f2c9bd;font-weight:700}.swatch-glass{filter:brightness(1.3) saturate(.8)}.swatch-soft{filter:sepia(.2) saturate(1.3)}.swatch-rose{filter:hue-rotate(330deg)}.swatch-latte{filter:sepia(.6)}.swatch-cool{filter:hue-rotate(25deg)}.swatch-film{filter:grayscale(.25) sepia(.3)}.swatch-glow{filter:brightness(1.3) sepia(.2)}.swatch-mono{filter:grayscale(1) contrast(1.2)}
         .tw-capture-row{display:flex;align-items:center;justify-content:space-between}.tw-side-button{display:flex;flex-direction:column;align-items:center;gap:7px;width:66px;border:0;background:transparent;color:#f6f0ec}
         .tw-side-button small{font-size:9px;color:#c4b8b2}.tw-shutter{width:76px;height:76px;display:grid;place-items:center;border:3px solid #fff;border-radius:50%;background:#ffffff26}
         .tw-shutter span{width:58px;height:58px;border-radius:50%;background:#f6f0ec}.tw-shutter.tw-recording span{width:25px;height:25px;border-radius:6px;background:#d86e63}
