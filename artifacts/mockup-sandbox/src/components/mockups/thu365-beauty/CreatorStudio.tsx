@@ -36,7 +36,7 @@ const sounds = [
   { title: "Phút dịu dàng", detail: "Piano nhẹ · 0:15", length: "00:15" },
 ];
 
-export function CreatorStudio({ onExit }: { onExit?: () => void } = {}) {
+export function CreatorStudio({ onExit, onReviewShare }: { onExit?: () => void; onReviewShare?: () => void } = {}) {
   const [filter, setFilter] = useState("Hồng đào");
   const [panel, setPanel] = useState<Panel>(null);
   const [sound, setSound] = useState(sounds[0]);
@@ -45,11 +45,13 @@ export function CreatorStudio({ onExit }: { onExit?: () => void } = {}) {
   const [editing, setEditing] = useState(false);
   const [sticker, setSticker] = useState("");
   const [caption, setCaption] = useState("");
-  const [exported, setExported] = useState(false);
-
   const openPanel = (next: Panel) => {
     setPanel(next);
-    setExported(false);
+  };
+
+  const goToShareReview = () => {
+    if (onReviewShare) onReviewShare();
+    else window.location.href = "/__mockup/preview/thu365-beauty/VideoShareReview";
   };
 
   return (
@@ -269,7 +271,7 @@ export function CreatorStudio({ onExit }: { onExit?: () => void } = {}) {
                 {panel === "sound" && "Chọn âm thanh"}
                 {panel === "sticker" && "Thêm nhãn dán"}
                 {panel === "text" && "Thêm dòng chữ"}
-                {panel === "export" && (exported ? "Sẵn sàng chia sẻ" : "Kiểm tra video")}
+                {panel === "export" && "Kiểm tra video"}
               </div>
               <button className="sheet-close" onClick={() => setPanel(null)} aria-label="Đóng"><X size={15} /></button>
             </div>
@@ -303,26 +305,17 @@ export function CreatorStudio({ onExit }: { onExit?: () => void } = {}) {
               </>
             )}
             {panel === "export" && (
-              exported ? (
-                <div className="done-message">
-                  <div className="done-mark"><Check size={21} /></div>
-                  <div className="done-title">Bản xem trước đã sẵn sàng</div>
-                  <p className="done-copy">Đây là mô phỏng giao diện. Video chưa được xử lý hay lưu vào thiết bị.</p>
-                  <button className="sheet-primary" onClick={() => setPanel(null)}>Hoàn tất</button>
-                </div>
-              ) : (
-                <>
-                  <div className="export-summary">
-                    <div className="export-ratio">9:16</div>
-                    <div>
-                      <div className="export-caption">Video dọc · 00:12</div>
-                      <div className="export-sub">3 đoạn · {filter} · {sound.title}</div>
-                      <div className="export-sub">Riêng tư · không tự động đăng</div>
-                    </div>
+              <>
+                <div className="export-summary">
+                  <div className="export-ratio">9:16</div>
+                  <div>
+                    <div className="export-caption">Video dọc · 00:12</div>
+                    <div className="export-sub">3 đoạn · {filter} · {sound.title}</div>
+                    <div className="export-sub">Riêng tư · không tự động đăng</div>
                   </div>
-                  <button className="sheet-primary" onClick={() => setExported(true)}>Xác nhận khung 9:16</button>
-                </>
-              )
+                </div>
+                <button className="sheet-primary" onClick={goToShareReview}>Tiếp tục xem lại trước khi chia sẻ</button>
+              </>
             )}
           </section>
         </div>
