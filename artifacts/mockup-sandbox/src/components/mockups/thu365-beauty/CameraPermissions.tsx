@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Camera, Image, LockKeyhole, Mic, ShieldCheck, X } from "lucide-react";
 
 const permissionStyles = `
@@ -67,6 +67,22 @@ const permissionStyles = `
     .t365-perm-card { min-height:64px; }
     .t365-perm-context { margin:9px 1px 10px; }
   }
+  @media(max-height:600px) {
+    .t365-permissions { padding-top:max(8px,env(safe-area-inset-top)); padding-bottom:max(12px,env(safe-area-inset-bottom)); }
+    .t365-perm-hero { margin:12px 0 10px; }
+    .t365-perm-title { margin:8px 0 6px; font-size:29px; }
+    .t365-perm-list { gap:6px; }
+    .t365-perm-card { min-height:56px; padding:8px 10px; }
+    .t365-perm-context { margin:7px 1px 8px; }
+    .t365-perm-primary { min-height:43px; }
+  }
+  @media(max-width:350px) {
+    .t365-permissions { padding-left:15px; padding-right:15px; }
+    .t365-perm-card { gap:9px; padding-left:9px; padding-right:9px; }
+    .t365-perm-icon { width:32px; height:32px; flex-basis:32px; }
+    .t365-perm-name { font-size:11px; }
+    .t365-perm-description { font-size:8px; }
+  }
   @media(prefers-reduced-motion:reduce) { .t365-perm-scrim *, .t365-perm-dialog * { scroll-behavior:auto; } }
 `;
 
@@ -78,12 +94,25 @@ type CameraPermissionsProps = {
 
 export function CameraPermissions({ onBack, onContinue, onSkipOptional }: CameraPermissionsProps) {
   const [privacyOpen, setPrivacyOpen] = useState(false);
+  const dialogRef = useRef<HTMLElement>(null);
+  const reviewButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogWasOpen = useRef(false);
+
+  useEffect(() => {
+    if (privacyOpen) {
+      dialogWasOpen.current = true;
+      dialogRef.current?.focus();
+    } else if (dialogWasOpen.current) {
+      dialogWasOpen.current = false;
+      reviewButtonRef.current?.focus();
+    }
+  }, [privacyOpen]);
 
   return (
     <main className="t365-permissions">
       <style>{permissionStyles}</style>
       <header className="t365-perm-header">
-        <button className="t365-perm-back" onClick={onBack} aria-label="Về chọn trải nghiệm">
+        <button type="button" className="t365-perm-back" onClick={onBack} aria-label="Về chọn trải nghiệm">
           <ArrowLeft size={16} />
         </button>
         <div className="t365-perm-brand">THU<span>365</span></div>
@@ -123,13 +152,13 @@ export function CameraPermissions({ onBack, onContinue, onSkipOptional }: Camera
       <p className="t365-perm-context"><LockKeyhole size={12} /> Mic và thư viện ảnh có thể bỏ qua. Bạn có thể xem lại lựa chọn bất cứ lúc nào.</p>
 
       <div className="t365-perm-actions">
-        <button className="t365-perm-primary" onClick={onContinue}>Tiếp tục</button>
-        <button className="t365-perm-secondary" onClick={onSkipOptional}>Bỏ qua quyền tùy chọn</button>
-        <button className="t365-perm-review" onClick={() => setPrivacyOpen(true)}>
+        <button type="button" className="t365-perm-primary" onClick={onContinue}>Tiếp tục</button>
+        <button type="button" className="t365-perm-secondary" onClick={onSkipOptional}>Bỏ qua quyền tùy chọn</button>
+        <button ref={reviewButtonRef} type="button" className="t365-perm-review" onClick={() => setPrivacyOpen(true)} aria-haspopup="dialog" aria-expanded={privacyOpen}>
           <ShieldCheck size={13} /> Xem lựa chọn riêng tư
         </button>
       </div>
-      <p className="t365-perm-footnote">Bản xem trước giao diện. Các nút chỉ minh họa chuyển màn hình — chưa yêu cầu quyền thiết bị hay bật camera.</p>
+      <p className="t365-perm-footnote">Bản web preview chỉ minh họa giao diện. Luồng xin quyền thiết bị thật nằm trong ứng dụng native tại apps/thu365-mobile.</p>
 
       {privacyOpen && (
         <div className="t365-perm-scrim" onClick={() => setPrivacyOpen(false)}>
@@ -138,15 +167,28 @@ export function CameraPermissions({ onBack, onContinue, onSkipOptional }: Camera
             role="dialog"
             aria-modal="true"
             aria-labelledby="t365-perm-dialog-title"
+            aria-describedby="t365-perm-dialog-description"
+            tabIndex={-1}
+            ref={dialogRef}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setPrivacyOpen(false);
+              if (event.key === "Tab") {
+                const focusable = event.currentTarget.querySelectorAll<HTMLElement>("button");
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+                else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+              }
+            }}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="t365-perm-dialog-top">
               <h2 id="t365-perm-dialog-title">Lựa chọn riêng tư</h2>
-              <button className="t365-perm-close" onClick={() => setPrivacyOpen(false)} aria-label="Đóng">
+              <button type="button" className="t365-perm-close" onClick={() => setPrivacyOpen(false)} aria-label="Đóng">
                 <X size={16} />
               </button>
             </div>
-            <p className="t365-perm-dialog-intro">Trong ứng dụng thật, bạn có thể cho phép hoặc từ chối từng quyền khi hệ điều hành hỏi. Mic và thư viện ảnh không bắt buộc để xem giao diện camera.</p>
+            <p className="t365-perm-dialog-intro" id="t365-perm-dialog-description">Trong ứng dụng thật, bạn có thể cho phép hoặc từ chối từng quyền khi hệ điều hành hỏi. Mic và thư viện ảnh không bắt buộc để xem giao diện camera.</p>
             <div className="t365-perm-review-list">
               <div className="t365-perm-review-item">
                 <Camera size={15} />
@@ -161,7 +203,7 @@ export function CameraPermissions({ onBack, onContinue, onSkipOptional }: Camera
                 <div><strong>Thư viện ảnh · tùy chọn</strong><span>Bỏ qua nếu bạn chưa muốn chọn ảnh từ thư viện.</span></div>
               </div>
             </div>
-            <button className="t365-perm-done" onClick={() => setPrivacyOpen(false)}>Đã hiểu</button>
+            <button type="button" className="t365-perm-done" onClick={() => setPrivacyOpen(false)}>Đã hiểu</button>
           </section>
         </div>
       )}
