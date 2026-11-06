@@ -4,7 +4,7 @@ import {
   SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View
 } from "react-native";
 import {
-  Camera, CameraView, useCameraPermissions, type CameraType
+  CameraView, useCameraPermissions, useMicrophonePermissions, type CameraType
 } from "expo-camera";
 import * as MediaLibrary from "expo-media-library/legacy";
 
@@ -51,7 +51,7 @@ export default function App() {
   const cameraRef = useRef<CameraView | null>(null);
   const [cameraPermission, requestCameraPermission, getCameraPermission] = useCameraPermissions();
   const [microphonePermission, requestMicrophonePermission, getMicrophonePermission] =
-    Camera.useMicrophonePermissions();
+    useMicrophonePermissions();
   const [libraryPermission, requestLibraryPermission, getLibraryPermission] =
     MediaLibrary.usePermissions({ granularPermissions: ["photo"] });
 
@@ -241,7 +241,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.bg} />
+      <StatusBar barStyle="light-content" />
       {screen === "intro" && (
         <ScrollView contentContainerStyle={s.intro}>
           <View style={s.brandRow}>
@@ -450,9 +450,9 @@ const s = StyleSheet.create({
   previewOverlay: { position: "absolute", top: 16, left: 14, right: 14, gap: 8 },
   previewLabel: { alignSelf: "flex-start", color: C.text, backgroundColor: "rgba(0,0,0,.48)", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7, fontSize: 8, fontWeight: "800", letterSpacing: 1 },
   previewHint: { alignSelf: "flex-start", color: C.rose, backgroundColor: "rgba(0,0,0,.48)", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7, fontSize: 8, letterSpacing: 1 },
-  cameraLoading: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: "#171514" },
+  cameraLoading: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: "#171514" },
   muted: { color: C.muted, fontSize: 10, lineHeight: 16 },
-  capturePreview: { ...StyleSheet.absoluteFillObject, backgroundColor: "#090909", alignItems: "center", justifyContent: "center" },
+  capturePreview: { ...StyleSheet.absoluteFill, backgroundColor: "#090909", alignItems: "center", justifyContent: "center" },
   captureImage: { width: "100%", height: "88%" },
   closePreview: { padding: 12 },
   issueCard: { flex: 1, justifyContent: "center", gap: 15, padding: 18, borderRadius: 18, borderWidth: 1, borderColor: C.line, backgroundColor: C.panel },
