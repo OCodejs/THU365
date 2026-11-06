@@ -86,10 +86,14 @@ export default function App() {
         setPermissionIssue("camera");
       }
       if (!microphone.granted) {
+        if (audioEnabled || cameraMode === "video") setPermissionIssue("microphone");
         setAudioEnabled(false);
         if (cameraMode === "video") setCameraMode("picture");
       }
-      if (!library.granted && screen === "gallery") setScreen("camera");
+      if (!library.granted && screen === "gallery") {
+        setScreen("camera");
+        setPermissionIssue("library");
+      }
     } catch {
       // A failed status refresh never grants access or blocks unrelated features.
     }
