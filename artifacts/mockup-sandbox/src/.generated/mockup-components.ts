@@ -5,6 +5,7 @@ export const modules: ModuleMap = {
   "./components/mockups/thu365-beauty/BeautyCamera.tsx": () => import("../components/mockups/thu365-beauty/BeautyCamera.tsx"),
   "./components/mockups/thu365-beauty/CameraPermissions.tsx": () => import("../components/mockups/thu365-beauty/CameraPermissions.tsx"),
   "./components/mockups/thu365-beauty/CreatorStudio.tsx": () => import("../components/mockups/thu365-beauty/CreatorStudio.tsx"),
+  "./components/mockups/thu365-beauty/LiveEffectsDiscovery.tsx": () => import("../components/mockups/thu365-beauty/LiveEffectsDiscovery.tsx"),
   "./components/mockups/thu365-beauty/THU365Prototype.tsx": () => import("../components/mockups/thu365-beauty/THU365Prototype.tsx"),
   "./components/mockups/thu365-beauty/VideoShareReview.tsx": () => import("../components/mockups/thu365-beauty/VideoShareReview.tsx")
 };
