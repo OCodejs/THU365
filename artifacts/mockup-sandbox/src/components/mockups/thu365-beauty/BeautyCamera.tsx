@@ -132,7 +132,7 @@ const styles = `
   }
 `;
 
-export function BeautyCamera({ onExit, optionalAccessSkipped = false }: { onExit?: () => void; optionalAccessSkipped?: boolean } = {}) {
+export function BeautyCamera({ onExit, onOpenLibrary, optionalAccessSkipped = false }: { onExit?: () => void; onOpenLibrary?: () => void; optionalAccessSkipped?: boolean } = {}) {
   const [selectedLook, setSelectedLook] = useState(1);
   const [intensity, setIntensity] = useState(64);
   const [mode, setMode] = useState<CameraMode>("Ảnh");
@@ -244,7 +244,7 @@ export function BeautyCamera({ onExit, optionalAccessSkipped = false }: { onExit
         <div className="bc-capture-area">
           <button
             className="bc-side-action"
-            onClick={() => setModal("gallery")}
+            onClick={() => onOpenLibrary ? onOpenLibrary() : setModal("gallery")}
             disabled={optionalAccessSkipped}
             aria-label={optionalAccessSkipped ? "Thư viện ảnh, đã tắt vì bạn bỏ qua quyền tùy chọn" : "Mở thư viện ảnh mẫu"}
             title={optionalAccessSkipped ? "Thư viện ảnh đã được bỏ qua" : undefined}
