@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { readVideoDraft, saveVideoDraft } from "./videoDraft";
 import {
   ArrowLeft,
   Check,
@@ -44,7 +45,15 @@ export function CreatorStudio({ onExit, onReviewShare }: { onExit?: () => void; 
   const [muted, setMuted] = useState(false);
   const [editing, setEditing] = useState(false);
   const [sticker, setSticker] = useState("");
-  const [caption, setCaption] = useState("");
+  const [caption, setCaption] = useState(() => readVideoDraft().caption);
+  const [coverIndex, setCoverIndex] = useState(() => readVideoDraft().coverIndex);
+  const coverFrames = [
+    { name: "Chân dung", position: "50% 28%" },
+    { name: "Ánh nhìn", position: "50% 43%" },
+    { name: "Khung rộng", position: "50% 62%" },
+  ];
+  const chooseCover = (index: number) => { setCoverIndex(index); saveVideoDraft({ coverIndex: index }); };
+  const updateCaption = (value: string) => { setCaption(value); saveVideoDraft({ caption: value }); };
   const openPanel = (next: Panel) => {
     setPanel(next);
   };
@@ -61,7 +70,7 @@ export function CreatorStudio({ onExit, onReviewShare }: { onExit?: () => void; 
         .thu-studio {
           --bg: #10100f; --panel: #191817; --line: rgba(255,255,255,.09);
           --muted: #a5a09a; --soft: #ded9d2; --accent: #f3aa91; --accent2: #f5d3a7;
-          min-height: 100dvh; width: 100%; overflow: hidden; position: relative;
+          min-height: 100dvh; width: 100%; overflow-x: hidden; overflow-y: auto; position: relative;
           background: radial-gradient(ellipse at 50% 34%, #29201d 0, #151413 38%, var(--bg) 74%);
           color: #f5f0e9; font-family: 'DM Sans', sans-serif; box-sizing: border-box;
           padding: max(12px, env(safe-area-inset-top)) 16px max(14px, env(safe-area-inset-bottom));
@@ -87,6 +96,15 @@ export function CreatorStudio({ onExit, onReviewShare }: { onExit?: () => void; 
         .preview-caption { font:600 11px 'Manrope',sans-serif; letter-spacing:.01em; text-shadow:0 1px 8px #000; }
         .filter-strip { height:67px; flex:0 0 auto; display:flex; align-items:flex-start; gap:9px; overflow-x:auto; scrollbar-width:none; padding:0 1px 4px; }
         .filter-strip::-webkit-scrollbar { display:none; }
+        .draft-edits { flex:0 0 auto; margin:0 0 8px; padding:8px 9px; border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,.035); }
+        .draft-edits-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:7px; color:#e9dfd7; font-size:9px; font-weight:700; }
+        .cover-options { display:flex; gap:7px; }
+        .cover-option { width:43px; height:48px; padding:2px; border:1px solid transparent!important; border-radius:8px; background:#292522!important; overflow:hidden; }
+        .cover-option.selected { border-color:var(--accent)!important; box-shadow:0 0 0 2px rgba(243,170,145,.13); }
+        .cover-option img { width:100%; height:100%; object-fit:cover; border-radius:5px; }
+        .draft-caption-input { width:100%; min-width:0; height:34px; padding:0 9px; border:1px solid #51443d; border-radius:9px; color:#fff; background:#151413; font:10px "DM Sans",sans-serif; }
+        .draft-edit-row { display:flex; align-items:center; gap:8px; margin-top:7px; }
+        .draft-edit-label { display:block; margin-bottom:4px; color:var(--muted); font-size:8px; }
         .filter-option { flex:0 0 58px; display:flex; flex-direction:column; align-items:center; gap:5px; border:0; background:transparent; padding:0; color:#aaa39c!important; font-size:9px!important; white-space:nowrap; }
         .filter-thumb { width:47px; height:42px; border-radius:12px; overflow:hidden; border:1px solid transparent; position:relative; }
         .filter-thumb img { width:100%; height:100%; object-fit:cover; object-position:center 36%; }
@@ -165,7 +183,7 @@ export function CreatorStudio({ onExit, onReviewShare }: { onExit?: () => void; 
           <img
             src="/__mockup/images/thu365-beauty-portrait.jpg"
             alt="Chân dung tham chiếu cho câu chuyện làm đẹp"
-            style={{ filter: filters.find((item) => item.name === filter)?.tint }}
+            style={{ filter: filters.find((item) => item.name === filter)?.tint, objectPosition: coverFrames[coverIndex].position }}
           />
           <div className="preview-head">
             <span className="preview-tag"><Clapperboard size={11} /> XEM TRƯỚC</span>
@@ -205,6 +223,23 @@ export function CreatorStudio({ onExit, onReviewShare }: { onExit?: () => void; 
           </button>
         ))}
       </div>
+
+      <section className="draft-edits" aria-label="Chỉnh bìa và chú thích video">
+        <div className="draft-edits-head"><span>Chọn ảnh bìa</span><span>{coverFrames[coverIndex].name}</span></div>
+        <div className="draft-edit-row">
+          <div className="cover-options" role="group" aria-label="Chọn khung hình làm ảnh bìa">
+            {coverFrames.map((frame, index) => (
+              <button key={frame.name} type="button" className={"cover-option " + (coverIndex === index ? "selected" : "")} aria-label={"Chọn ảnh bìa: " + frame.name} aria-pressed={coverIndex === index} onClick={() => chooseCover(index)}>
+                <img src="/__mockup/images/thu365-beauty-portrait.jpg" alt="" style={{ objectPosition: frame.position, filter: filters.find((item) => item.name === filter)?.tint }} />
+              </button>
+            ))}
+          </div>
+          <label style={{ flex: 1, minWidth: 0 }}>
+            <span className="draft-edit-label">Chú thích</span>
+            <input className="draft-caption-input" value={caption} onChange={(event) => updateCaption(event.target.value)} maxLength={120} aria-label="Chú thích video" placeholder="Viết chú thích ngắn…" />
+          </label>
+        </div>
+      </section>
 
       <button className="sound-line" onClick={() => openPanel("sound")} aria-label={`Chọn âm thanh, hiện tại ${sound.title}`}>
         <span className="sound-detail">
@@ -299,8 +334,8 @@ export function CreatorStudio({ onExit, onReviewShare }: { onExit?: () => void; 
             )}
             {panel === "text" && (
               <>
-                <input className="caption-input" value={caption} onChange={(event) => setCaption(event.target.value)} maxLength={36} placeholder="Viết một câu thật là bạn…" aria-label="Nội dung chữ" />
-                <div className="sound-meta" style={{ margin: "8px 2px 0" }}>Tối đa 36 ký tự · bạn có thể chỉnh lại sau</div>
+                <input className="caption-input" value={caption} onChange={(event) => updateCaption(event.target.value)} maxLength={120} placeholder="Viết chú thích cho video…" aria-label="Chú thích video" />
+                <div className="sound-meta" style={{ margin: "8px 2px 0" }}>Tối đa 120 ký tự · giữ trong bản nháp của phiên này</div>
                 <button className="sheet-primary" onClick={() => setPanel(null)}>Thêm vào câu chuyện</button>
               </>
             )}
