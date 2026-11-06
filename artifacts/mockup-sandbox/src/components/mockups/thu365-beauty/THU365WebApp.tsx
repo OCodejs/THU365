@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";\nimport { createTHU365FaceTracker, renderFaceAR, type FaceARSettings } from "./THU365FaceAR";
+import { useEffect, useRef, useState } from "react";
+import { createTHU365FaceTracker, renderFaceAR, type FaceARSettings } from "./THU365FaceAR";
 import {
   ArrowLeft, Aperture, Camera, Check, ChevronRight, Download, FlipHorizontal2,
   Image as ImageIcon, LockKeyhole, Mic, Play, RotateCcw, ShieldCheck, Sparkles,
@@ -25,7 +26,10 @@ export function THU365WebApp() {
   const [screen, setScreen] = useState<Screen>("home");
   const [facing, setFacing] = useState<CameraFacing>("user");
   const [mode, setMode] = useState<MediaKind>("image");
-  const [beauty, setBeauty] = useState(35);\n  const [arSettings, setArSettings] = useState<FaceARSettings>({ smooth: 35, lipstick: "rgba(190,48,83,.9)", blush: "rgba(238,105,135,.8)", eyeliner: false, hairTint: "none", sticker: "none", light: "soft" });\n  const [trackingStatus, setTrackingStatus] = useState("Đang chờ camera");\n  const [savedPresets, setSavedPresets] = useState<Array<{name:string;settings:FaceARSettings}>>(() => { try { return JSON.parse(localStorage.getItem("thu365-ar-presets") || "[]"); } catch { return []; } });
+  const [beauty, setBeauty] = useState(35);
+  const [arSettings, setArSettings] = useState<FaceARSettings>({ smooth: 35, lipstick: "rgba(190,48,83,.9)", blush: "rgba(238,105,135,.8)", eyeliner: false, hairTint: "none", sticker: "none", light: "soft" });
+  const [trackingStatus, setTrackingStatus] = useState("Đang chờ camera");
+  const [savedPresets, setSavedPresets] = useState<Array<{name:string;settings:FaceARSettings}>>(() => { try { return JSON.parse(localStorage.getItem("thu365-ar-presets") || "[]"); } catch { return []; } });
   const [preset, setPreset] = useState("natural");
   const activePreset = BEAUTY_PRESETS.find((item) => item.id === preset) ?? BEAUTY_PRESETS[0];
   const [recording, setRecording] = useState(false);
@@ -36,7 +40,9 @@ export function THU365WebApp() {
   const [mediaBlob, setMediaBlob] = useState<Blob | null>(null);
   const [mediaName, setMediaName] = useState("thu365-photo.jpg");
   const [notice, setNotice] = useState("");
-  const videoRef = useRef<HTMLVideoElement>(null);\n  const arCanvasRef = useRef<HTMLCanvasElement>(null);\n  const trackerRef = useRef<any>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const arCanvasRef = useRef<HTMLCanvasElement>(null);
+  const trackerRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioStreamRef = useRef<MediaStream | null>(null);
@@ -56,7 +62,34 @@ export function THU365WebApp() {
     if (mediaUrl) URL.revokeObjectURL(mediaUrl);
   }, [mediaUrl]);
 
-\n  useEffect(() => {\n    if (screen !== "camera") return;\n    let active = true; let raf = 0; let tracker: any = null; let last = -1;\n    setTrackingStatus("Đang tải mô hình nhận diện");\n    void createTHU365FaceTracker().then((loaded) => {\n      if (!active) { loaded.close(); return; }\n      tracker = loaded; trackerRef.current = loaded; setTrackingStatus("AI Face Tracking đang hoạt động");\n      const tick = () => {\n        if (!active) return;\n        const video = videoRef.current, canvas = arCanvasRef.current;\n        if (video && canvas && video.readyState >= 2 && video.currentTime !== last) {\n          last = video.currentTime;\n          try { const result = tracker.detectForVideo(video, performance.now()); renderFaceAR(canvas, video, result, arSettings, `${activePreset.filter} brightness(${1 + beauty / 650}) saturate(${1 + beauty / 500})`); setTrackingStatus(result.faceLandmarks?.length ? "Đã nhận diện khuôn mặt" : "Đưa khuôn mặt vào khung hình"); } catch { setTrackingStatus("Đang khởi tạo theo dõi"); }\n        }\n        raf = requestAnimationFrame(tick);\n      }; tick();\n    }).catch(() => setTrackingStatus("Không tải được AI model · kiểm tra kết nối mạng"));\n    return () => { active = false; cancelAnimationFrame(raf); tracker?.close?.(); trackerRef.current = null; };\n  }, [screen, arSettings, activePreset.filter, beauty]);\n\n  function saveARPreset() {\n    const name = window.prompt("Tên preset cá nhân?"); if (!name?.trim()) return;\n    const next = [...savedPresets.filter((item) => item.name !== name.trim()), { name: name.trim(), settings: arSettings }].slice(-12);\n    setSavedPresets(next); localStorage.setItem("thu365-ar-presets", JSON.stringify(next)); showNotice("Đã lưu preset trên thiết bị");\n  }\n\n  function stopCamera() {
+
+  useEffect(() => {
+    if (screen !== "camera") return;
+    let active = true; let raf = 0; let tracker: any = null; let last = -1;
+    setTrackingStatus("Đang tải mô hình nhận diện");
+    void createTHU365FaceTracker().then((loaded) => {
+      if (!active) { loaded.close(); return; }
+      tracker = loaded; trackerRef.current = loaded; setTrackingStatus("AI Face Tracking đang hoạt động");
+      const tick = () => {
+        if (!active) return;
+        const video = videoRef.current, canvas = arCanvasRef.current;
+        if (video && canvas && video.readyState >= 2 && video.currentTime !== last) {
+          last = video.currentTime;
+          try { const result = tracker.detectForVideo(video, performance.now()); renderFaceAR(canvas, video, result, arSettings, `${activePreset.filter} brightness(${1 + beauty / 650}) saturate(${1 + beauty / 500})`); setTrackingStatus(result.faceLandmarks?.length ? "Đã nhận diện khuôn mặt" : "Đưa khuôn mặt vào khung hình"); } catch { setTrackingStatus("Đang khởi tạo theo dõi"); }
+        }
+        raf = requestAnimationFrame(tick);
+      }; tick();
+    }).catch(() => setTrackingStatus("Không tải được AI model · kiểm tra kết nối mạng"));
+    return () => { active = false; cancelAnimationFrame(raf); tracker?.close?.(); trackerRef.current = null; };
+  }, [screen, arSettings, activePreset.filter, beauty]);
+
+  function saveARPreset() {
+    const name = window.prompt("Tên preset cá nhân?"); if (!name?.trim()) return;
+    const next = [...savedPresets.filter((item) => item.name !== name.trim()), { name: name.trim(), settings: arSettings }].slice(-12);
+    setSavedPresets(next); localStorage.setItem("thu365-ar-presets", JSON.stringify(next)); showNotice("Đã lưu preset trên thiết bị");
+  }
+
+  function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
   }
@@ -297,7 +330,8 @@ export function THU365WebApp() {
             <div className="tw-camera-bottom">
               <div className="tw-filter-row">
                 <div><span>HIỆU ỨNG · {activePreset.description}</span><b>{beauty}%</b></div>
-                <div className="tw-ar-tools"><label>SON <select value={arSettings.lipstick} onChange={(e) => setArSettings(v => ({...v, lipstick:e.target.value}))}><option value="none">Tắt</option><option value="rgba(190,48,83,.9)">Đỏ cherry</option><option value="rgba(190,95,105,.9)">Hồng đất</option><option value="rgba(145,70,105,.9)">Mận</option></select></label><label>MÁ HỒNG <select value={arSettings.blush} onChange={(e) => setArSettings(v => ({...v, blush:e.target.value}))}><option value="none">Tắt</option><option value="rgba(238,105,135,.8)">Rose</option><option value="rgba(240,150,105,.8)">Peach</option></select></label><label><input type="checkbox" checked={arSettings.eyeliner} onChange={(e) => setArSettings(v => ({...v, eyeliner:e.target.checked}))}/> Eyeliner</label><label>TÓC <select value={arSettings.hairTint} onChange={(e) => setArSettings(v => ({...v, hairTint:e.target.value}))}><option value="none">Tự nhiên</option><option value="#8b4d2d">Nâu</option><option value="#c69a45">Vàng</option><option value="#7b477e">Tím</option></select></label><label>STICKER <select value={arSettings.sticker} onChange={(e) => setArSettings(v => ({...v, sticker:e.target.value as FaceARSettings["sticker"]}))}><option value="none">Tắt</option><option value="hearts">Hearts</option><option value="sunglasses">Sunglasses</option><option value="sparkles">Sparkles</option></select></label><label>ÁNH SÁNG <select value={arSettings.light} onChange={(e) => setArSettings(v => ({...v, light:e.target.value as FaceARSettings["light"]}))}><option value="none">Tắt</option><option value="soft">Soft</option><option value="golden">Golden</option><option value="studio">Studio</option></select></label><button type="button" onClick={saveARPreset}>Lưu preset</button>{savedPresets.map((item) => <button type="button" key={item.name} onClick={() => setArSettings(item.settings)}>{item.name}</button>)}</div>\n                <div className="tw-preset-strip" aria-label="Chọn hiệu ứng làm đẹp">{BEAUTY_PRESETS.map((item) => <button key={item.id} type="button" className={`tw-preset ${preset === item.id ? "is-active" : ""}`} onClick={() => setPreset(item.id)} aria-pressed={preset === item.id}><span className={`tw-preset-swatch swatch-${item.id}`} /><small>{item.name}</small></button>)}</div>
+                <div className="tw-ar-tools"><label>SON <select value={arSettings.lipstick} onChange={(e) => setArSettings(v => ({...v, lipstick:e.target.value}))}><option value="none">Tắt</option><option value="rgba(190,48,83,.9)">Đỏ cherry</option><option value="rgba(190,95,105,.9)">Hồng đất</option><option value="rgba(145,70,105,.9)">Mận</option></select></label><label>MÁ HỒNG <select value={arSettings.blush} onChange={(e) => setArSettings(v => ({...v, blush:e.target.value}))}><option value="none">Tắt</option><option value="rgba(238,105,135,.8)">Rose</option><option value="rgba(240,150,105,.8)">Peach</option></select></label><label><input type="checkbox" checked={arSettings.eyeliner} onChange={(e) => setArSettings(v => ({...v, eyeliner:e.target.checked}))}/> Eyeliner</label><label>TÓC <select value={arSettings.hairTint} onChange={(e) => setArSettings(v => ({...v, hairTint:e.target.value}))}><option value="none">Tự nhiên</option><option value="#8b4d2d">Nâu</option><option value="#c69a45">Vàng</option><option value="#7b477e">Tím</option></select></label><label>STICKER <select value={arSettings.sticker} onChange={(e) => setArSettings(v => ({...v, sticker:e.target.value as FaceARSettings["sticker"]}))}><option value="none">Tắt</option><option value="hearts">Hearts</option><option value="sunglasses">Sunglasses</option><option value="sparkles">Sparkles</option></select></label><label>ÁNH SÁNG <select value={arSettings.light} onChange={(e) => setArSettings(v => ({...v, light:e.target.value as FaceARSettings["light"]}))}><option value="none">Tắt</option><option value="soft">Soft</option><option value="golden">Golden</option><option value="studio">Studio</option></select></label><button type="button" onClick={saveARPreset}>Lưu preset</button>{savedPresets.map((item) => <button type="button" key={item.name} onClick={() => setArSettings(item.settings)}>{item.name}</button>)}</div>
+                <div className="tw-preset-strip" aria-label="Chọn hiệu ứng làm đẹp">{BEAUTY_PRESETS.map((item) => <button key={item.id} type="button" className={`tw-preset ${preset === item.id ? "is-active" : ""}`} onClick={() => setPreset(item.id)} aria-pressed={preset === item.id}><span className={`tw-preset-swatch swatch-${item.id}`} /><small>{item.name}</small></button>)}</div>
                 <input aria-label="Cường độ làm đẹp" type="range" min="0" max="100" value={beauty} onChange={(event) => setBeauty(Number(event.target.value))} />
               </div>
               <div className="tw-capture-row">
