@@ -142,7 +142,7 @@ export function THU365WebApp() {
           facingMode: { ideal: nextFacing },
           width: { ideal: requestedResolution === "4k" ? 3840 : requestedResolution === "720" ? 1280 : 1920 },
           height: { ideal: requestedResolution === "4k" ? 2160 : requestedResolution === "720" ? 720 : 1080 },
-          frameRate: { ideal: Number(studioSettings.fps), max: Number(studioSettings.fps) }
+          frameRate: { ideal: Number(studioSettings.fps) }
         }
       });
       const actual = stream.getVideoTracks()[0]?.getSettings?.();
@@ -397,7 +397,7 @@ export function THU365WebApp() {
       {screen === "camera" && (
         <section className="tw-camera-screen">
           <div className="tw-camera-view">
-            <video ref={videoRef} autoPlay muted playsInline className="tw-live-video" style={{ opacity: 0, transform: facing === "user" ? "scaleX(-1)" : "none" }} /><canvas ref={arCanvasRef} className="tw-ar-canvas" style={{ transform: facing === "user" ? "scaleX(-1)" : "none" }} />
+            <video ref={videoRef} autoPlay muted playsInline className="tw-live-video" style={{ opacity: 0, transform: facing === "user" && studioSettings.mirror ? "scaleX(-1)" : "none" }} /><canvas ref={arCanvasRef} className="tw-ar-canvas" style={{ transform: facing === "user" && studioSettings.mirror ? "scaleX(-1)" : "none" }} />
             <div className="tw-live-shade" />
             <header className="tw-camera-header">
               <button className="tw-glass" onClick={returnHome} aria-label="Đóng camera"><ArrowLeft size={19} /></button>
