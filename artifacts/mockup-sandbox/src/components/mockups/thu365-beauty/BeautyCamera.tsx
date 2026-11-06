@@ -247,6 +247,7 @@ export function BeautyCamera({ onExit, optionalAccessSkipped = false }: { onExit
             onClick={() => setModal("gallery")}
             aria-label="Mở thư viện gần đây"
             disabled={optionalAccessSkipped}
+            aria-label={optionalAccessSkipped ? "Thư viện ảnh, đã tắt vì bạn bỏ qua quyền tùy chọn" : "Mở thư viện ảnh mẫu"}
             title={optionalAccessSkipped ? "Thư viện ảnh đã được bỏ qua" : undefined}
           >
             <span className="bc-gallery-thumb"><img src="/__mockup/images/thu365-beauty-portrait.jpg" alt="" /></span>
@@ -262,6 +263,7 @@ export function BeautyCamera({ onExit, optionalAccessSkipped = false }: { onExit
                   role="tab"
                   aria-selected={mode === item}
                   disabled={optionalAccessSkipped && item === "Video"}
+                  aria-label={optionalAccessSkipped && item === "Video" ? "Quay video đã tắt vì bạn bỏ qua quyền microphone" : `Chọn chế độ ${item}`}
                   title={optionalAccessSkipped && item === "Video" ? "Microphone đã được bỏ qua" : undefined}
                 >
                   {item === "Video" && <Video size={11} style={{ verticalAlign: "middle", marginRight: 3 }} />}{item}
