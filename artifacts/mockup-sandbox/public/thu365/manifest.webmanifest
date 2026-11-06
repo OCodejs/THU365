@@ -1,0 +1,23 @@
+{
+  "id": "/thu365/",
+  "name": "THU365 Beauty Camera",
+  "short_name": "THU365",
+  "description": "Không gian chụp ảnh và sáng tạo video của riêng bạn.",
+  "lang": "vi-VN",
+  "start_url": "/thu365/",
+  "scope": "/thu365/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#0a0a0b",
+  "theme_color": "#0a0a0b",
+  "categories": ["photo", "video", "lifestyle"],
+  "icons": [
+    {
+      "src": "/thu365/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

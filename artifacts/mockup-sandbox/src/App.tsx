@@ -1,4 +1,5 @@
 import { useEffect, useState, type ComponentType } from "react";
+import { THU365PWA } from "./components/mockups/thu365-beauty/THU365PWA";
 
 import { modules as discoveredModules } from "./.generated/mockup-components";
 
@@ -130,6 +131,14 @@ function getPreviewPath(): string | null {
 
 function App() {
   const previewPath = getPreviewPath();
+  const basePath = getBasePath();
+  const localPath = basePath && window.location.pathname.startsWith(basePath)
+    ? window.location.pathname.slice(basePath.length) || "/"
+    : window.location.pathname;
+
+  if (localPath === "/thu365" || localPath === "/thu365/") {
+    return <THU365PWA />;
+  }
 
   if (previewPath) {
     return (
