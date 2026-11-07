@@ -7,8 +7,6 @@ import {
   FlipHorizontal2,
   LockKeyhole,
   MoreHorizontal,
-  RotateCcw,
-  Save,
   Sparkles,
   Video,
   WandSparkles,
@@ -96,11 +94,6 @@ const styles = `
   .bc-slider::-webkit-slider-thumb { appearance:none; width:13px; height:13px; border-radius:50%; background:#f5e9df; border:2px solid #cf9a88; box-shadow:0 0 0 4px rgba(233,183,170,.12); cursor:pointer; }
   .bc-slider::-moz-range-thumb { width:10px; height:10px; border-radius:50%; background:#f5e9df; border:2px solid #cf9a88; cursor:pointer; }
   .bc-slider-label { font-size:9px; }
-  .bc-settings-actions { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:16px; }
-  .bc-settings-button { min-height:42px; border-radius:13px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.055); color:#f8eee7; display:flex; align-items:center; justify-content:center; gap:8px; font:600 11px 'DM Sans',sans-serif; cursor:pointer; }
-  .bc-settings-button.primary { background:#e9b7aa; border-color:#e9b7aa; color:#241918; }
-  .bc-settings-button:disabled { opacity:.45; cursor:not-allowed; }
-  .bc-settings-status { margin-top:7px; color:rgba(248,244,239,.55); text-align:center; font-size:9px; }
   .bc-capture-area { display:grid; grid-template-columns:1fr 1.3fr 1fr; align-items:center; margin-top:18px; }
   .bc-side-action { border:0; color:rgba(255,255,255,.79); background:none; cursor:pointer; justify-self:center; display:flex; flex-direction:column; align-items:center; gap:5px; font-size:9px; }
   .bc-side-action:disabled { opacity:.35; cursor:not-allowed; }
@@ -140,23 +133,8 @@ const styles = `
 `;
 
 export function BeautyCamera({ onExit, onOpenLibrary, optionalAccessSkipped = false }: { onExit?: () => void; onOpenLibrary?: () => void; optionalAccessSkipped?: boolean } = {}) {
-  const [selectedLook, setSelectedLook] = useState(() => {
-    try {
-      const raw = window.localStorage.getItem("thu365.beauty.settings.v1");
-      const value = raw ? Number(JSON.parse(raw).selectedLook) : 1;
-      return Number.isFinite(value) ? Math.min(looks.length - 1, Math.max(0, value)) : 1;
-    } catch { return 1; }
-  });
-  const [intensity, setIntensity] = useState(() => {
-    try {
-      const raw = window.localStorage.getItem("thu365.beauty.settings.v1");
-      const value = raw ? Number(JSON.parse(raw).intensity) : 64;
-      return Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 64;
-    } catch { return 64; }
-  });
-  const [settingsSaved, setSettingsSaved] = useState(() => {
-    try { return Boolean(window.localStorage.getItem("thu365.beauty.settings.v1")); } catch { return false; }
-  });
+  const [selectedLook, setSelectedLook] = useState(1);
+  const [intensity, setIntensity] = useState(64);
   const [mode, setMode] = useState<CameraMode>("Ảnh");
   const [flipped, setFlipped] = useState(false);
   const [modal, setModal] = useState<"privacy" | "gallery" | null>(null);
@@ -168,34 +146,6 @@ export function BeautyCamera({ onExit, onOpenLibrary, optionalAccessSkipped = fa
   };
 
   const activeLook = looks[selectedLook];
-
-  const saveBeautySettings = () => {
-    try {
-      window.localStorage.setItem("thu365.beauty.settings.v1", JSON.stringify({ selectedLook, intensity, savedAt: new Date().toISOString() }));
-      setSettingsSaved(true);
-      showNotice("Đã lưu cài đặt làm đẹp trên thiết bị này");
-    } catch {
-      showNotice("Không thể lưu. Hãy kiểm tra dung lượng trình duyệt.");
-    }
-  };
-
-  const restoreBeautySettings = () => {
-    try {
-      const raw = window.localStorage.getItem("thu365.beauty.settings.v1");
-      if (!raw) { showNotice("Chưa có cài đặt nào được lưu"); return; }
-      const saved = JSON.parse(raw) as { selectedLook?: number; intensity?: number };
-      setSelectedLook(Math.min(looks.length - 1, Math.max(0, Number(saved.selectedLook) || 0)));
-      setIntensity(Math.min(100, Math.max(0, Number(saved.intensity) || 0)));
-      setSettingsSaved(true);
-      showNotice("Đã khôi phục cài đặt đã lưu");
-    } catch { showNotice("Không đọc được cài đặt đã lưu"); }
-  };
-
-  const resetBeautySettings = () => {
-    setSelectedLook(0);
-    setIntensity(0);
-    showNotice("Đã đặt lại thông số làm đẹp");
-  };
 
   return (
     <div className="bc-root">
@@ -289,20 +239,6 @@ export function BeautyCamera({ onExit, onOpenLibrary, optionalAccessSkipped = fa
             style={{ "--progress": `${intensity}%` } as CSSProperties}
           />
           <span className="bc-slider-label">Rõ</span>
-        </div>
-
-        <div className="bc-settings-actions" aria-label="Lưu cài đặt làm đẹp">
-          <button className="bc-settings-button primary" onClick={saveBeautySettings}>
-            <Save size={15} /> Lưu cài đặt
-          </button>
-          <button className="bc-settings-button" onClick={restoreBeautySettings} disabled={!settingsSaved}>
-            <RotateCcw size={14} /> Khôi phục
-          </button>
-        </div>
-        <div className="bc-settings-status" role="status">
-          {settingsSaved ? "Đã có cấu hình làm đẹp lưu trên thiết bị này" : "Cài đặt chỉ được lưu khi bạn nhấn Lưu cài đặt"}
-          {" · "}
-          <button onClick={resetBeautySettings} style={{ border:0, padding:0, color:"#e9b7aa", background:"none", textDecoration:"underline", cursor:"pointer", font:"inherit" }}>Đặt lại mặc định</button>
         </div>
 
         <div className="bc-capture-area">
