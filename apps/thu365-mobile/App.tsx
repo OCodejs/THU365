@@ -88,8 +88,10 @@ export default function App() {
         setScreen("intro");
         setPermissionIssue("camera");
       }
-      if (!microphone.granted) {
-        if (audioEnabled || cameraMode === "video") setPermissionIssue("microphone");
+      // Silent video is valid without microphone permission. Only recover to photo mode
+      // when a previously enabled microphone permission has actually been revoked.
+      if (!microphone.granted && audioEnabled) {
+        setPermissionIssue("microphone");
         setAudioEnabled(false);
         if (cameraMode === "video") setCameraMode("picture");
       }
