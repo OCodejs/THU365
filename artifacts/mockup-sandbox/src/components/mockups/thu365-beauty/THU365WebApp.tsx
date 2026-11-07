@@ -116,6 +116,7 @@ export function THU365WebApp() {
   const [aiModelStates, setAiModelStates] = useState<Record<string,{installed:boolean;bytes:number;downloading:boolean;progress:number;error:string}>>({});
   const [aiModelBusy, setAiModelBusy] = useState(false);
   const [arReady, setArReady] = useState(false);
+  const [aiReady, setAiReady] = useState(false);
   const [aiRetry, setAiRetry] = useState(0);
   function updateStudioSettings(patch: Partial<{photo:string;video:string;fps:string;mirror:boolean}>) { setStudioSettings((current:any) => { const next = {...current, ...patch}; localStorage.setItem("anhthu-studio-settings", JSON.stringify(next)); return next; }); }
   async function runAIDiagnostics() {
@@ -244,13 +245,14 @@ export function THU365WebApp() {
 
 
   useEffect(() => {
-    if (screen !== "camera") { setArReady(false); return; }
+    if (screen !== "camera") { setArReady(false); setAiReady(false); return; }
     let active = true;
     let raf = 0;
     let tracker: any = null;
     let last = -1;
     let lastInsightAt = 0;
     setArReady(false);
+    setAiReady(false);
     setTrackingStatus("Camera đã bật · đang tải AI nền");
 
     // Start the processed preview immediately. Beauty color controls must work
@@ -298,11 +300,13 @@ export function THU365WebApp() {
       if (!active) { loaded.close(); return; }
       tracker = loaded;
       trackerRef.current = loaded;
+      setAiReady(true);
       setTrackingStatus(loaded.segmentationEnabled ? "AI Face + Skin sẵn sàng" : "AI Face sẵn sàng · Skin AI dự phòng");
     }).catch((cause) => {
       if (!active) return;
       tracker = null;
       trackerRef.current = null;
+      setAiReady(false);
       console.warn("AnhThu AI model unavailable; live color/filter controls remain active:", cause);
       setTrackingStatus("Beauty màu đang hoạt động · AI Face chưa tải được");
     });
@@ -313,6 +317,7 @@ export function THU365WebApp() {
       tracker?.close?.();
       trackerRef.current = null;
       setArReady(false);
+      setAiReady(false);
     };
   }, [screen, aiRetry]);
 
@@ -479,6 +484,10 @@ export function THU365WebApp() {
   }
 
   function capturePhoto() {
+    if (!aiReady) {
+      showNotice("AI Face + Skin chưa sẵn sàng. Chờ trạng thái AI sẵn sàng rồi chụp để áp dụng đầy đủ hiệu ứng.");
+      return;
+    }
     const video = videoRef.current;
     if (!video || !video.videoWidth || !video.videoHeight) {
       showNotice("Camera chưa sẵn sàng. Thử lại sau giây lát.");
@@ -512,6 +521,10 @@ export function THU365WebApp() {
 
   async function beginVideoRecording() {
     setError("");
+    if (!aiReady || !arReady) {
+      setError("AI Beauty chưa sẵn sàng. Hãy chờ Face Tracking + Skin Segmentation khởi tạo xong trước khi quay.");
+      return;
+    }
     try {
       if (!streamRef.current) return;
       if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
@@ -521,11 +534,13 @@ export function THU365WebApp() {
       const audio = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       audioStreamRef.current = audio;
       void refreshDevicePermissions();
-      // Record the processed AR canvas whenever face tracking is ready; use the raw camera only as a startup fallback.
-      const processedCanvas = arReady ? arCanvasRef.current : null;
-      processedVideoStreamRef.current = processedCanvas?.captureStream ? processedCanvas.captureStream(30) : null;
-      const processedTracks = processedVideoStreamRef.current?.getVideoTracks() ?? [];
-      const sourceVideoTracks = processedTracks.length ? processedTracks : streamRef.current.getVideoTracks();
+      // Never silently record raw camera footage when the beauty canvas is unavailable.
+      const processedCanvas = arCanvasRef.current;
+      if (!processedCanvas?.captureStream) throw new Error("Thiết bị không hỗ trợ quay video từ canvas hiệu ứng.");
+      processedVideoStreamRef.current = processedCanvas.captureStream(30);
+      const processedTracks = processedVideoStreamRef.current.getVideoTracks();
+      if (!processedTracks.length) throw new Error("Không thể tạo luồng video đã xử lý.");
+      const sourceVideoTracks = processedTracks;
       const recordingStream = new MediaStream([...sourceVideoTracks, ...audio.getAudioTracks()]);
       const candidates = ["video/mp4;codecs=h264,aac", "video/mp4", "video/webm;codecs=vp8,opus", "video/webm"];
       const mimeType = candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate));
