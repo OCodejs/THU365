@@ -1,5 +1,9 @@
 # THU365 iOS installation and distribution
 
+**Repository:** [OCodejs/THU365](https://github.com/OCodejs/THU365) · [iOS build workflow](https://github.com/OCodejs/THU365/actions/workflows/thu365-ios-build.yml)
+
+[← Back to project README](https://github.com/OCodejs/THU365#readme)
+
 THU365 has two iPhone installation paths. They are different products and must not be confused.
 
 ## 1. Web app / PWA — available without Apple Developer
