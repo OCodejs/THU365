@@ -23,20 +23,26 @@ export async function createTHU365FaceTracker(){
  const vision=await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm");
  const files=await vision.FilesetResolver.forVisionTasks(WASM);
  const faceAsset=await resolveCachedModel(FACE,"Face Landmarker");
- const skinAsset=await resolveCachedModel(SKIN,"Skin Segmentation");
+ let skinAsset:{url:string;revoke:()=>void}|null=null;
+ try{skinAsset=await resolveCachedModel(SKIN,"Skin Segmentation");}
+ catch(error){console.warn("THU365 Skin Segmentation unavailable; continuing with Face Landmarker.",error);}
  const faceOptions={baseOptions:{modelAssetPath:faceAsset.url},runningMode:"VIDEO",numFaces:1,minFaceDetectionConfidence:.55,minFacePresenceConfidence:.55,minTrackingConfidence:.55};
  let face:any=null;
  let segmenter:any=null;
  let disposed=false;
- const segmentationOptions={baseOptions:{modelAssetPath:skinAsset.url},runningMode:"VIDEO",outputCategoryMask:true,outputConfidenceMasks:false};
+ const segmentationOptions=skinAsset?{baseOptions:{modelAssetPath:skinAsset.url},runningMode:"VIDEO",outputCategoryMask:true,outputConfidenceMasks:false}:null;
  try{
   try{face=await vision.FaceLandmarker.createFromOptions(files,{...faceOptions,baseOptions:{...faceOptions.baseOptions,delegate:"GPU"}});}
   catch{face=await vision.FaceLandmarker.createFromOptions(files,{...faceOptions,baseOptions:{...faceOptions.baseOptions,delegate:"CPU"}});}
-  try{segmenter=await vision.ImageSegmenter.createFromOptions(files,{...segmentationOptions,baseOptions:{...segmentationOptions.baseOptions,delegate:"GPU"}});}
-  catch{segmenter=await vision.ImageSegmenter.createFromOptions(files,{...segmentationOptions,baseOptions:{...segmentationOptions.baseOptions,delegate:"CPU"}});}
-  if(!segmenter)throw new Error("Không khởi tạo được Skin Segmentation trên thiết bị này.");
+  if(skinAsset&&segmentationOptions){
+   try{segmenter=await vision.ImageSegmenter.createFromOptions(files,{...segmentationOptions,baseOptions:{...segmentationOptions.baseOptions,delegate:"GPU"}});}
+   catch{
+    try{segmenter=await vision.ImageSegmenter.createFromOptions(files,{...segmentationOptions,baseOptions:{...segmentationOptions.baseOptions,delegate:"CPU"}});}
+    catch(error){console.warn("THU365 Skin Segmentation could not initialize; Face Landmarker remains active.",error);segmenter?.close?.();segmenter=null;skinAsset.revoke();skinAsset=null;}
+   }
+  }
  }catch(error){
-  face?.close?.();segmenter?.close?.();faceAsset.revoke();skinAsset.revoke();
+  face?.close?.();segmenter?.close?.();faceAsset.revoke();skinAsset?.revoke();
   throw error;
  }
  return {
@@ -45,7 +51,7 @@ export async function createTHU365FaceTracker(){
    if(segmenter)try{const out=segmenter.segmentForVideo(video,timestamp);const mask=out.categoryMask?.[0]??out.categoryMask;if(mask){const labels=mask.getAsUint8Array();const skin=new Uint8Array(labels.length);const hair=new Uint8Array(labels.length);for(let i=0;i<labels.length;i++){skin[i]=labels[i]===3?255:0;hair[i]=labels[i]===1?255:0;}result.skinMask={width:mask.width,height:mask.height,data:skin};result.hairMask={width:mask.width,height:mask.height,data:hair};}}catch{/* keep face landmarks and previous-frame style */}
    return result;
   },
-  close(){disposed=true;face?.close?.();segmenter?.close?.();segmenter=null;faceAsset.revoke();skinAsset.revoke();},
+  close(){if(disposed)return;disposed=true;face?.close?.();segmenter?.close?.();segmenter=null;faceAsset.revoke();skinAsset?.revoke();},
   get segmentationEnabled(){return Boolean(segmenter);}
  };
 }
