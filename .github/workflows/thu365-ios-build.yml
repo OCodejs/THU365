@@ -59,7 +59,7 @@ jobs:
         run: npx expo-doctor
 
       - name: Generate iOS native project
-        run: npx expo prebuild --platform ios --no-install --non-interactive
+        run: CI=1 npx expo prebuild --platform ios
 
       - name: Verify generated Xcode workspace
         run: xcodebuild -list -workspace ios/THU365.xcworkspace
