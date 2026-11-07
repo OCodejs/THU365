@@ -51,6 +51,7 @@ export function THU365WebApp() {
   const [mode, setMode] = useState<MediaKind>("image");
   const [beauty, setBeauty] = useState(35);
   const [beautyPanel, setBeautyPanel] = useState<"auto" | "manual">("auto");
+  const [beautyPanelOpen, setBeautyPanelOpen] = useState(true);
   const [beautyCategory, setBeautyCategory] = useState<"face" | "makeup">("face");
   const [activeBeautyTool, setActiveBeautyTool] = useState("smooth");
   const [autoProfile, setAutoProfile] = useState("natural");
@@ -664,7 +665,7 @@ export function THU365WebApp() {
               <button className="tw-glass" onClick={() => void startCamera(facing === "user" ? "environment" : "user")} aria-label="Đổi camera"><FlipHorizontal2 size={20} /></button>
             </header>
             <aside className="tw-camera-rail" aria-label="Công cụ camera">
-              <button type="button" onClick={() => setBeautyPanel(beautyPanel === "auto" ? "manual" : "auto")} aria-label="Chuyển chế độ làm đẹp"><Sparkles size={19}/><small>Beauty</small></button>
+              <button type="button" onClick={() => { if (!beautyPanelOpen) { setBeautyPanelOpen(true); setBeautyPanel("manual"); } else { setBeautyPanelOpen(false); } }} aria-expanded={beautyPanelOpen} aria-label={beautyPanelOpen ? "Thu gọn bảng làm đẹp" : "Mở bảng làm đẹp"}><Sparkles size={19}/><small>Beauty</small></button>
               <button type="button" onClick={() => { setBeautyPanel("manual"); showNotice("Điều chỉnh ánh sáng trong bảng làm đẹp"); }} aria-label="Điều chỉnh ánh sáng"><Zap size={19}/><small>Ánh sáng</small></button>
               <button type="button" onClick={() => { setMode("video"); setShortVideoMode(true); setVideoLimitSeconds(15); showNotice("Đã chọn video 15 giây"); }} aria-label="Video nhanh"><Clapperboard size={19}/><small>15s</small></button>
               <button type="button" onClick={() => fileRef.current?.click()} aria-label="Mở thư viện"><ImageIcon size={19}/><small>Thư viện</small></button>
@@ -672,7 +673,8 @@ export function THU365WebApp() {
             <div className="tw-live-label"><span /> {trackingStatus.toUpperCase()} · {cameraQuality}</div>
             {trackingStatus.includes("AI chưa tải") && <button type="button" className="tw-ai-retry" onClick={() => { setTrackingStatus("Đang thử tải lại AI"); setAiRetry((value) => value + 1); }}>Thử tải lại AI</button>}
             <div className="tw-camera-bottom">
-              <div className="tw-filter-row">
+              {beautyPanelOpen && <div className="tw-filter-row tw-filter-row-expanded">
+                  <div className="tw-beauty-panel-header"><div><b>BEAUTY STUDIO</b><small>Điều chỉnh hiệu ứng trực tiếp</small></div><button type="button" onClick={() => setBeautyPanelOpen(false)} aria-label="Đóng bảng làm đẹp"><X size={19}/><span>Đóng</span></button></div>
                 <div className="tw-beauty-tabs"><button type="button" className={beautyPanel === "auto" ? "is-active" : ""} onClick={() => setBeautyPanel("auto")}>✨ TỰ ĐỘNG</button><button type="button" className={beautyPanel === "manual" ? "is-active" : ""} onClick={() => setBeautyPanel("manual")}>🎚 THỦ CÔNG</button><b>{beauty}%</b></div>
                 {beautyPanel === "auto" ? <div className="tw-auto-beauty"><p>Chọn ảnh tham chiếu · AI áp dụng màu sắc và makeup lên khuôn mặt đang theo dõi</p><div className="tw-reference-head"><b>✨ THƯ VIỆN BEAUTY REFERENCE</b><span>{BEAUTY_REFERENCES.length} mẫu</span></div><div className="tw-reference-grid">{BEAUTY_REFERENCES.map((reference)=><button type="button" key={reference.id} className={selectedReference===reference.id?"tw-reference-card selected":"tw-reference-card"} onClick={()=>applyReferenceLook(reference)} aria-pressed={selectedReference===reference.id}><img src={reference.image} alt={reference.name} loading="lazy" referrerPolicy="no-referrer"/><span className="tw-reference-tag">{reference.gender}</span><b>{reference.name}</b><small>{reference.subtitle}</small></button>)}</div><div className="tw-reference-analysis"><span className="tw-ai-pulse"/> <span>{faceInsight}</span></div><div className="tw-reference-selected"><b>Đang áp dụng: {BEAUTY_REFERENCES.find(item=>item.id===selectedReference)?.name || "Natural"}</b><small>{BEAUTY_REFERENCES.find(item=>item.id===selectedReference)?.description || "Phong cách tự nhiên"}</small></div><div className="tw-auto-profiles"><button onClick={() => applyAutoBeauty("natural")} className={autoProfile === "natural" ? "is-active" : ""}>Natural</button><button onClick={() => applyAutoBeauty("cloud")} className={autoProfile === "cloud" ? "is-active" : ""}>Cloud Skin</button><button onClick={() => applyAutoBeauty("softglam")} className={autoProfile === "softglam" ? "is-active" : ""}>Soft Glam</button><button onClick={() => applyAutoBeauty("peach")} className={autoProfile === "peach" ? "is-active" : ""}>Peach Glow</button></div><button className="tw-auto-apply" onClick={() => applyAutoBeauty()}>✨ Auto setup làm đẹp</button></div> : <div className="tw-manual-beauty">
                   <div className="tw-manual-head"><span>ĐIỀU CHỈNH CHI TIẾT</span><button type="button" onClick={() => {setBeauty(0);setArSettings(v => ({...v,smooth:0,faceSlim:0,eyeEnlarge:0,lipstick:"none",blush:"none",lipstickStrength:0,blushStrength:0,eyeliner:false,eyelash:false,highlight:false,hairTint:"none",sticker:"none",light:"none"}));}}>↺ Đặt lại</button></div>
@@ -691,7 +693,7 @@ export function THU365WebApp() {
                 </div>
                 <div className="tw-preset-strip" aria-label="Chọn hiệu ứng làm đẹp">{BEAUTY_PRESETS.map((item) => <button key={item.id} type="button" className={`tw-preset ${preset === item.id ? "is-active" : ""}`} onClick={() => setPreset(item.id)} aria-pressed={preset === item.id}><span className="tw-preset-photo"><img src={presetReferenceImage(item.id)} alt={item.name+" reference"} loading="lazy" referrerPolicy="no-referrer" style={{filter:item.filter}}/></span><small>{item.name}</small></button>)}</div>
                 <input aria-label="Cường độ làm đẹp" type="range" min="0" max="100" value={beauty} onChange={(event) => setBeauty(Number(event.target.value))} />
-              </div>
+              </div>}
               <div className="tw-capture-modes" role="group" aria-label="Chế độ chụp và quay">
                 <button type="button" className={mode === "video" && videoLimitSeconds === 600 ? "is-active" : ""} onClick={() => { setMode("video"); setShortVideoMode(true); setVideoLimitSeconds(600); }}>10 phút</button>
                 <button type="button" className={mode === "video" && videoLimitSeconds === 60 ? "is-active" : ""} onClick={() => { setMode("video"); setShortVideoMode(true); setVideoLimitSeconds(60); }}>60s</button>
@@ -828,7 +830,28 @@ export function THU365WebApp() {
         .tw-toast{position:fixed;z-index:100;left:50%;bottom:max(90px,calc(env(safe-area-inset-bottom) + 80px));transform:translateX(-50%);max-width:90%;padding:11px 15px;border:1px solid #ffffff24;border-radius:99px;background:#211c1b;color:#f6f0ec;font-size:10px;white-space:nowrap}
         @media(max-height:700px){.tw-hero{height:225px}.tw-permission>.tw-back{margin-bottom:22px}.tw-camera-bottom{padding:0 18px}}
         @media(prefers-reduced-motion:reduce){.thu365-web *{scroll-behavior:auto}}
-      `}</style>
+      `}/* Mobile beauty workspace: prevent flex compression and provide an explicit expand/collapse control. */
+        .tw-filter-row>.tw-auto-beauty,.tw-filter-row>.tw-manual-beauty{display:block!important;width:100%;min-width:0}
+        .tw-filter-row>.tw-beauty-panel-header{display:flex!important;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;padding:4px 0 12px;border-bottom:1px solid #ffffff20;letter-spacing:0}
+        .tw-beauty-panel-header>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+        .tw-beauty-panel-header b{font-size:13px;letter-spacing:.12em;color:#f3c8bb}
+        .tw-beauty-panel-header small{font-size:10px;color:#b8aaa4}
+        .tw-beauty-panel-header button{display:flex;align-items:center;gap:6px;padding:9px 12px;border:1px solid #ffffff28;border-radius:999px;background:#302522;color:#f7e8e2;font-size:11px}
+        .tw-filter-row-expanded{position:fixed!important;z-index:20!important;inset:env(safe-area-inset-top,8px) 8px calc(env(safe-area-inset-bottom,8px) + 8px)!important;width:auto!important;max-height:none!important;height:auto!important;overflow-y:auto!important;overscroll-behavior:contain;padding:16px!important;margin:0!important;border:1px solid #e5b6aa66!important;border-radius:22px!important;background:linear-gradient(155deg,rgba(24,18,18,.98),rgba(5,5,5,.985))!important;backdrop-filter:blur(26px);box-shadow:0 18px 60px #000b!important}
+        .tw-filter-row-expanded .tw-reference-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:min(34dvh,320px);overflow-y:auto}
+        .tw-filter-row-expanded .tw-reference-card{grid-template-rows:clamp(110px,18dvh,180px) auto auto}
+        .tw-filter-row-expanded .tw-reference-card img{height:100%;min-height:0}
+        .tw-filter-row-expanded .tw-beauty-tool-grid button{flex-basis:68px;min-height:70px}
+        .tw-filter-row-expanded .tw-beauty-tool-grid button small{font-size:10px}
+        .tw-filter-row-expanded .tw-beauty-slider-head{font-size:13px;margin:12px 0 8px}
+        .tw-filter-row-expanded .tw-beauty-slider-head b{font-size:14px}
+        .tw-filter-row-expanded .tw-beauty-intensity{height:30px}
+        .tw-filter-row-expanded .tw-beauty-category-tabs button{font-size:13px;padding:13px 8px}
+        .tw-filter-row-expanded .tw-save-settings-button{min-height:46px;font-size:13px}
+        .tw-filter-row-expanded .tw-ar-tools{flex-wrap:wrap;overflow:visible}
+        .tw-filter-row-expanded .tw-ar-tools label{font-size:11px}
+        @media(min-width:700px){.tw-filter-row-expanded{left:50%!important;right:auto!important;top:24px!important;bottom:24px!important;width:min(720px,calc(100vw - 48px))!important;transform:translateX(-50%)}.tw-filter-row-expanded .tw-reference-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+        </style>
     </main>
   );
 }
