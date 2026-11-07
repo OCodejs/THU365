@@ -630,6 +630,7 @@ export function THU365WebApp() {
               <button onClick={() => {setActiveModule("album");setScreen("module");}}><span><ImageIcon/></span><b>Thư viện riêng</b><small>Ảnh và video của bạn</small></button>
             </div>
           </section>
+          <button className="tw-docs-home-card" onClick={() => {setActiveModule("docs");setActiveDocsTopic("overview");setScreen("module");}}><span><BookOpen size={20}/></span><div><b>Docs · Beauty Skills</b><small>12 hướng dẫn về AI Face, makeup, tóc, màu phim, video và preset.</small></div><ChevronRight size={18}/></button>
           <button className="tw-action-card" onClick={() => fileRef.current?.click()}><span className="tw-action-icon"><ImageIcon size={22}/></span><span className="tw-action-copy"><b>Chọn nhanh ảnh hoặc video</b><small>Mở bộ chọn ảnh an toàn của iOS / Android</small></span><ChevronRight size={18}/></button>
           <div className="tw-privacy-note"><ShieldCheck size={15}/><span><b>Riêng tư mặc định.</b> Ảnh/video chỉ ở trong trình duyệt, không tải lên máy chủ.</span></div>
           <footer className="tw-footer">ANHTHU BEAUTY · BẢN DÙNG THỬ PWA</footer>
@@ -1055,6 +1056,9 @@ export function THU365WebApp() {
         .tw-docs-footer{display:flex;align-items:flex-start;gap:8px;color:#a99b96;font-size:8px;line-height:1.5}
         .tw-docs-footer svg{flex:0 0 auto;color:#e5b6aa}
         @media(max-width:380px){.tw-docs-topic-list>button{grid-template-columns:32px minmax(0,1fr) 13px}.tw-docs-topic-tag{display:none}.tw-docs-hero h2{font-size:24px}}
+        .tw-docs-home-card{width:100%;display:flex;align-items:center;gap:11px;margin:5px 0 14px;padding:13px;border:1px solid #e5b6aa55;border-radius:15px;background:linear-gradient(110deg,#e5b6aa1c,#ffffff08);color:#f6e8e2;text-align:left}
+        .tw-docs-home-card>span{width:39px;height:39px;display:grid;place-items:center;flex:0 0 auto;border-radius:12px;background:#e5b6aa24;color:#e5b6aa}
+        .tw-docs-home-card>div{display:grid;gap:4px;min-width:0;flex:1}.tw-docs-home-card b{font-size:11px}.tw-docs-home-card small{font-size:9px;color:#b8aaa4;line-height:1.45}
       `}</style>
     </main>
   );
