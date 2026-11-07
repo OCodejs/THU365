@@ -484,8 +484,8 @@ export function THU365WebApp() {
   }
 
   function capturePhoto() {
-    if (!aiReady) {
-      showNotice("AI Face + Skin chưa sẵn sàng. Chờ trạng thái AI sẵn sàng rồi chụp để áp dụng đầy đủ hiệu ứng.");
+    if (!aiReady || !arReady) {
+      showNotice("AI Face + Skin chưa sẵn sàng. Chờ trạng thái AI và khung hình hiệu ứng sẵn sàng rồi chụp.");
       return;
     }
     const video = videoRef.current;
