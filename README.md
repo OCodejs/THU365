@@ -134,6 +134,12 @@ Yêu cầu: Node.js, npm; Xcode trên macOS để build iOS; Android Studio đ�
 | docs/thu365-pwa.md | Hướng dẫn và giới hạn PWA |
 | ios/README.md | Cài đặt, ký và phân phối native iOS |
 
+## Agent Skills
+
+Repository có skill hướng dẫn agent tải trực tiếp asset nhị phân lên GitHub bằng Git Data API, bao gồm PNG và WebP:
+
+- [GitHub Binary Image Upload](./.agents/skills/github-binary-image-upload/SKILL.md) — kiểm tra file, mã hóa base64 nội bộ, tạo Git blob/tree/commit, xác minh asset và mở pull request. Không ghi base64 vào chat hoặc source code.
+
 ## Trạng thái phát triển
 
 | Hạng mục | Trạng thái |
