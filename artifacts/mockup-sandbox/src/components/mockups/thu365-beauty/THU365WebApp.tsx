@@ -11,11 +11,17 @@ type MediaKind = "image" | "video";
 type CameraFacing = "user" | "environment";
 type BeautyPreset = { id: string; name: string; filter: string; description: string };
 type BeautyReference = { id:string;name:string;subtitle:string;image:string;gender:"Nam"|"Nữ";preset:string;beauty:number;settings:FaceARSettings;description:string };
-type AIModelPack = {id:string;name:string;version:string;url:string;description:string;sizeLabel:string;required:boolean};
+type AIModelPack = {id:string;name:string;version:string;url:string;description:string;sizeLabel:string;required:boolean;format:"task"|"tflite"};
+async function validateAIModelBlob(model:AIModelPack,blob:Blob|null|undefined):Promise<boolean>{
+ if(!blob||blob.size<1024)return false;
+ const bytes=new Uint8Array(await blob.slice(0,12).arrayBuffer());
+ if(model.format==="task")return bytes[0]===0x50&&bytes[1]===0x4b;
+ return bytes.length>=8&&bytes[4]===0x54&&bytes[5]===0x46&&bytes[6]===0x4c&&bytes[7]===0x33;
+}
 const AI_MODEL_CACHE = "anhthu-ai-models-v1";
 const AI_MODEL_PACKS: AIModelPack[] = [
- {id:"face",name:"Face Landmarker",version:"MediaPipe · float16 v1",url:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",description:"Theo dõi landmark mắt, mũi, môi và đường viền khuôn mặt.",sizeLabel:"Dung lượng đo khi tải",required:true},
- {id:"skin",name:"Skin Segmentation",version:"MediaPipe · multiclass 256",url:"https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite",description:"Phân vùng da và tóc để làm mịn theo vùng, áp màu tóc chính xác hơn.",sizeLabel:"Dung lượng đo khi tải",required:true}
+ {id:"face",name:"Face Landmarker",version:"MediaPipe · float16 v1",url:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",description:"Theo dõi landmark mắt, mũi, môi và đường viền khuôn mặt.",sizeLabel:"Dung lượng đo khi tải",required:true,format:"task"},
+ {id:"skin",name:"Skin Segmentation",version:"MediaPipe · multiclass 256",url:"https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite",description:"Phân vùng da và tóc để làm mịn theo vùng, áp màu tóc chính xác hơn.",sizeLabel:"Dung lượng đo khi tải",required:true,format:"tflite"}
 ];
 const BEAUTY_REFERENCES: BeautyReference[] = [
   {id:"cn-male-clean",name:"C-Drama nam · Thanh lịch",subtitle:"Nam · ánh sáng studio",gender:"Nam",image:"https://images.pexels.com/photos/35514244/pexels-photo-35514244/free-photo-of-dramatic-studio-portrait-of-young-asian-male-model.jpeg?auto=compress&cs=tinysrgb&w=720",preset:"cool",beauty:38,settings:{smooth:32,lipstick:"none",blush:"none",eyeliner:false,hairTint:"none",sticker:"none",light:"studio"},description:"Da tự nhiên, tương phản nhẹ, ánh sáng điện ảnh"},
@@ -148,7 +154,8 @@ export function THU365WebApp() {
         const response = await cache.match(model.url);
         if (!response) return "CHƯA CÀI · "+reachable;
         const blob = await response.blob();
-        return blob.size ? "ĐÃ TẢI VÀ LƯU TRÊN THIẾT BỊ · "+(blob.size/1048576).toFixed(2)+" MB" : "TỆP MODEL RỖNG · cần tải lại";
+        if (!await validateAIModelBlob(model,blob)) return "MODEL SAI ĐỊNH DẠNG / TẢI THIẾU · cần tải lại";
+        return "ĐÃ TẢI, ĐÚNG ĐỊNH DẠNG VÀ LƯU TRÊN THIẾT BỊ · "+(blob.size/1048576).toFixed(2)+" MB";
       } catch { return "KHÔNG ĐỌC ĐƯỢC BỘ NHỚ · "+reachable; }
     };
     const [faceModel, skinModel] = await Promise.all([
@@ -162,7 +169,7 @@ export function THU365WebApp() {
   async function refreshAIModelInventory() {
     if (!("caches" in window)) return;
     try { const cache=await caches.open(AI_MODEL_CACHE); const next:Record<string,{installed:boolean;bytes:number;downloading:boolean;progress:number;error:string}>={};
-      for(const model of AI_MODEL_PACKS){const response=await cache.match(model.url);const blob=response?await response.blob():null;next[model.id]={installed:Boolean(blob&&blob.size>0),bytes:blob?.size??0,downloading:false,progress:blob&&blob.size>0?100:0,error:blob&&!blob.size?"Tệp model rỗng · cần tải lại":""};}
+      for(const model of AI_MODEL_PACKS){const response=await cache.match(model.url);const blob=response?await response.blob():null;const valid=await validateAIModelBlob(model,blob);next[model.id]={installed:valid,bytes:valid?(blob?.size??0):0,downloading:false,progress:valid?100:0,error:blob&&!valid?"Model sai định dạng hoặc tải thiếu · hãy xóa và tải lại":""};}
       setAiModelStates(next);
     } catch(cause){console.warn("Cannot inspect AI model cache",cause);}
   }
@@ -176,7 +183,7 @@ export function THU365WebApp() {
       const total=Number(response.headers.get("content-length")||0),reader=response.body.getReader(),chunks:Uint8Array[]=[];let received=0;
       while(true){const part=await reader.read();if(part.done)break;if(part.value){chunks.push(part.value);received+=part.value.byteLength;setAiModelStates(v=>({...v,[model.id]:{installed:false,bytes:received,downloading:true,progress:total?Math.min(99,Math.round(received/total*100)):0,error:""}}));}}
       const blobParts=chunks.map((chunk)=>{const copy=new Uint8Array(chunk.byteLength);copy.set(chunk);return copy.buffer;});
-      const blob=new Blob(blobParts,{type:"application/octet-stream"});if(!blob.size)throw new Error("Tệp model rỗng");
+      const blob=new Blob(blobParts,{type:"application/octet-stream"});if(!await validateAIModelBlob(model,blob))throw new Error("Tệp tải về không đúng định dạng model "+model.format+". Hãy thử tải lại hoặc kiểm tra mạng.");
       const cache=await caches.open(AI_MODEL_CACHE);await cache.put(model.url,new Response(blob,{headers:{"Content-Type":"application/octet-stream","Content-Length":String(blob.size)}}));
       setAiModelStates(v=>({...v,[model.id]:{installed:true,bytes:blob.size,downloading:false,progress:100,error:""}}));showNotice(model.name+" đã tải và lưu trên thiết bị");
     }catch(cause){const message=cause instanceof Error?cause.message:"Không thể tải model";setAiModelStates(v=>({...v,[model.id]:{installed:false,bytes:0,downloading:false,progress:0,error:message}}));showNotice("Tải model thất bại · kiểm tra mạng hoặc CORS");}
@@ -423,7 +430,7 @@ export function THU365WebApp() {
       for (const model of AI_MODEL_PACKS.filter(item => item.required)) {
         const response = await cache.match(model.url);
         const blob = response ? await response.blob() : null;
-        if (!blob?.size) missing.push(model);
+        if (!await validateAIModelBlob(model,blob)) missing.push(model);
       }
       if (missing.length) {
         await refreshAIModelInventory();
