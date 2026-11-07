@@ -70,7 +70,7 @@ export function THU365WebApp() {
   const activeDocsReference = BEAUTY_REFERENCES.find((item) => item.id === (
     activeDocsTopic === "face" || activeDocsTopic === "face-shape" ? "cn-male-clean" :
     activeDocsTopic === "skin" || activeDocsTopic === "makeup" || activeDocsTopic === "light" ? "cn-female-glass" :
-    activeDocsTopic === "hair" || activeDocsTopic === "ar" ? "cn-female-soft" :
+    activeDocsTopic === "hair" || activeDocsTopic === "ar" ? "cn-female-peach" :
     activeDocsTopic === "background" || activeDocsTopic === "video" ? "cn-male-douyin" :
     activeDocsTopic === "reference" ? selectedReference : "cn-female-glass"
   )) ?? BEAUTY_REFERENCES[0];
