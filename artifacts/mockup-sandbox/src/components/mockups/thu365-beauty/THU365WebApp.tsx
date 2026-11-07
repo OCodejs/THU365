@@ -56,9 +56,36 @@ export function THU365WebApp() {
   const [cameraQuality, setCameraQuality] = useState("Đang chờ camera");
   const [devicePermissions, setDevicePermissions] = useState({ camera: "Chưa kiểm tra", microphone: "Chưa kiểm tra" });
   const [isStandalone, setIsStandalone] = useState(false);
+  const [aiDiagnostics, setAiDiagnostics] = useState<{network:string;secure:string;camera:string;runtime:string;faceModel:string;skinModel:string} | null>(null);
+  const [checkingAI, setCheckingAI] = useState(false);
   const [arReady, setArReady] = useState(false);
   const [aiRetry, setAiRetry] = useState(0);
   function updateStudioSettings(patch: Partial<{photo:string;video:string;fps:string;mirror:boolean}>) { setStudioSettings((current:any) => { const next = {...current, ...patch}; localStorage.setItem("anhthu-studio-settings", JSON.stringify(next)); return next; }); }
+  async function runAIDiagnostics() {
+    setCheckingAI(true);
+    const runtime = typeof WebAssembly !== "undefined" ? "WebAssembly khả dụng" : "Thiếu WebAssembly";
+    const secure = window.isSecureContext ? "HTTPS / secure context hợp lệ" : "Không an toàn · camera và AI có thể bị chặn";
+    const camera = navigator.mediaDevices?.getUserMedia ? "Trình duyệt hỗ trợ getUserMedia" : "Trình duyệt không hỗ trợ camera";
+    const network = navigator.onLine ? "Thiết bị đang báo có mạng" : "Thiết bị đang offline";
+    const probe = async (url: string) => {
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), 9000);
+      try {
+        const response = await fetch(url, { method: "HEAD", mode: "cors", cache: "no-store", signal: controller.signal });
+        return response.ok ? "Kết nối OK · HTTP " + response.status : "Máy chủ trả HTTP " + response.status;
+      } catch (cause) {
+        return cause instanceof DOMException && cause.name === "AbortError" ? "Hết thời gian chờ 9 giây" : "Không xác minh được · có thể do mạng hoặc CORS";
+      } finally { window.clearTimeout(timer); }
+    };
+    const [runtimeResult, faceModel, skinModel] = await Promise.all([
+      Promise.resolve(runtime),
+      probe("https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"),
+      probe("https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite")
+    ]);
+    setAiDiagnostics({ network, secure, camera, runtime: runtimeResult, faceModel, skinModel });
+    setCheckingAI(false);
+  }
+
   async function refreshDevicePermissions() {
     const read = async (name: "camera" | "microphone") => {
       try {
@@ -439,6 +466,20 @@ export function THU365WebApp() {
                 <p className="tw-permission-help">Nếu đã từ chối quyền: mở Cài đặt iPhone → Safari → Camera / Microphone, hoặc mở Cài đặt của website trong Safari để bật lại. Không có ứng dụng web nào được tự bật quyền thay bạn.</p>
               </div>
               {error && <p className="tw-permission-help" role="alert">{error}</p>}
+              <div className="tw-ai-diagnostics">
+                <div className="tw-ai-diagnostics-head"><div><h2>Chẩn đoán AI Beauty</h2><p>Kiểm tra kết nối model Face Landmarker và Skin Segmentation mà không tải toàn bộ model.</p></div><Sparkles size={21}/></div>
+                <button className="tw-secondary tw-ai-check" disabled={checkingAI} onClick={() => void runAIDiagnostics()}>{checkingAI ? "Đang kiểm tra kết nối…" : "Kiểm tra mạng & AI Model"}</button>
+                {aiDiagnostics ? <div className="tw-ai-check-list">
+                  <div><span>Internet</span><b>{aiDiagnostics.network}</b></div>
+                  <div><span>Bảo mật trình duyệt</span><b>{aiDiagnostics.secure}</b></div>
+                  <div><span>Camera API</span><b>{aiDiagnostics.camera}</b></div>
+                  <div><span>WebAssembly</span><b>{aiDiagnostics.runtime}</b></div>
+                  <div><span>Face Landmarker model</span><b>{aiDiagnostics.faceModel}</b></div>
+                  <div><span>Skin Segmentation model</span><b>{aiDiagnostics.skinModel}</b></div>
+                </div> : <p className="tw-permission-help">Chưa chạy kiểm tra. Khi Face AI không tải được, hãy kiểm tra mạng và hai model ở đây.</p>}
+                <button className="tw-secondary tw-ai-retry" onClick={() => { if (streamRef.current) { setAiRetry((value) => value + 1); setScreen("camera"); } else { void startCamera(); } }}>Mở camera & tải lại AI</button>
+                <small className="tw-ai-note">Kiểm tra HEAD chỉ xác minh khả năng kết nối máy chủ; không chứng minh model đã tải hoặc nhận diện khuôn mặt thành công. Model thật được khởi tạo khi mở camera.</small>
+              </div>
               <div className="tw-device-install"><h2>Cài đặt ứng dụng</h2><p>{isStandalone ? "AnhThu đang chạy từ màn hình chính." : "Để mở toàn màn hình như ứng dụng, hãy thêm AnhThu vào Màn hình chính."}</p><ol><li>Mở trang AnhThu bằng Safari.</li><li>Chạm nút Chia sẻ.</li><li>Chọn “Thêm vào Màn hình chính”, sau đó xác nhận.</li></ol><small>Icon THU365 sẽ được dùng khi iOS cập nhật dữ liệu PWA. Nếu icon cũ còn hiển thị, xóa shortcut cũ và thêm lại sau khi tải lại trang.</small></div>
               <div className="tw-quality-note"><b>Thiết lập quay hiện tại</b><span>Video bitrate mục tiêu: {studioSettings.video === "4k" ? "20 Mbps" : studioSettings.video === "720" ? "6 Mbps" : "12 Mbps"}</span><small>FPS và độ phân giải thực tế phụ thuộc camera, iOS, Safari và nhiệt độ thiết bị. Bitrate cao không thể khôi phục chi tiết đã mất do thiếu sáng hoặc lấy nét sai.</small></div>
             </div>
@@ -555,6 +596,7 @@ export function THU365WebApp() {
         .tw-action-card>svg:last-child{color:#c6a49b}.tw-privacy-note{display:flex;gap:9px;margin-top:22px;padding:13px;border:1px solid #ffffff12;border-radius:13px;color:#aaa09c;font-size:10px;line-height:1.5}
         .tw-privacy-note svg{flex:0 0 auto;color:#e5b6aa}.tw-privacy-note b{color:#e9d9d3}.tw-footer{position:absolute;bottom:max(14px,env(safe-area-inset-bottom));left:22px;color:#625b58;font-size:8px;letter-spacing:.14em}
         .tw-hidden{display:none}.tw-module-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0 13px}.tw-module-card{min-height:126px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:15px;border:1px solid #ffffff16;border-radius:16px;background:#151313;color:#f6f0ec;text-align:left}.tw-module-card b{font-size:12px}.tw-module-card small{color:#aaa09c;font-size:9px;line-height:1.4}.tw-module-feature{border-color:#e5b6aa66;background:linear-gradient(145deg,#2a1d1b,#151313)}.tw-module-icon{width:39px;height:39px;display:grid;place-items:center;border-radius:12px;background:#e5b6aa18;color:#e5b6aa}.tw-module-screen{width:100%;max-width:520px;min-height:100dvh;margin:auto;padding:max(22px,env(safe-area-inset-top)) 22px max(25px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:18px}.tw-module-hero{flex:1;min-height:280px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:24px;border:1px solid #ffffff16;border-radius:20px;background:radial-gradient(ellipse at 80% 20%,#563c37 0,transparent 48%),#151313}.tw-module-hero h2{margin:22px 0 8px;font:500 30px/1.08 Georgia,serif}.tw-module-hero p{color:#b3a7a2;font-size:12px;line-height:1.7}.tw-module-foot{display:flex;gap:9px;color:#aaa09c;font-size:10px;line-height:1.5}.tw-module-foot svg{flex:0 0 auto;color:#e5b6aa}.tw-brand{display:flex;align-items:center;gap:8px}.tw-brand img{width:29px;height:29px;border-radius:9px;object-fit:cover;border:1px solid #ffffff25}
+        .tw-ai-diagnostics{margin:18px 0;padding:17px;border:1px solid #d9a58b35;border-radius:16px;background:linear-gradient(145deg,#211918,#171313)}.tw-ai-diagnostics-head{display:flex;justify-content:space-between;align-items:flex-start;color:#edc4b5}.tw-ai-diagnostics h2{font:500 22px Georgia,serif;margin:0 0 7px;color:#f4e9e4}.tw-ai-diagnostics p{font-size:10px;color:#b9a8a1;line-height:1.55;margin:0 0 12px}.tw-ai-check,.tw-ai-retry{width:100%;padding:11px;border:1px solid #d9a58b55;border-radius:10px;color:#f0c8bd;background:#2a1d1a;font-size:10px}.tw-ai-check-list{display:grid;gap:9px;margin:14px 0}.tw-ai-check-list div{display:grid;gap:3px;border-bottom:1px solid #ffffff12;padding-bottom:8px}.tw-ai-check-list span{font-size:9px;color:#9f8e88}.tw-ai-check-list b{font-size:10px;color:#f1ded6;font-weight:500;overflow-wrap:anywhere}.tw-ai-retry{margin-top:10px}.tw-ai-note{display:block;color:#a99a94;font-size:9px;line-height:1.55;margin-top:10px}
         .tw-device-permissions,.tw-device-install{margin:18px 0;padding:17px;border:1px solid #ffffff18;border-radius:16px;background:#171313}
         .tw-permission-status{display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid #ffffff12;color:#e5b6aa}.tw-permission-status>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}.tw-permission-status b{color:#f4e9e4;font-size:11px}.tw-permission-status small{color:#a99a94;font-size:9px;line-height:1.4}.tw-permission-status button{border:1px solid #e5b6aa66;border-radius:9px;background:#241b1a;color:#f0c8bd;padding:8px 10px;font-size:9px;white-space:nowrap}
         .tw-refresh-permissions{margin-top:8px;border:1px solid #ffffff20;border-radius:10px}.tw-permission-help,.tw-device-install small{display:block;color:#a99a94;font-size:9px;line-height:1.6;margin:10px 0 0}.tw-device-install h2{font:500 22px Georgia,serif;margin:0 0 8px}.tw-device-install p,.tw-device-install li{color:#c9b9b3;font-size:10px;line-height:1.6}.tw-device-install ol{padding-left:18px}
