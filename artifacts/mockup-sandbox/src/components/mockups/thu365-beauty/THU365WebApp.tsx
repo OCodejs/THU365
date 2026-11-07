@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createTHU365FaceTracker, renderFaceAR, type FaceARSettings } from "./THU365FaceAR";
 import {
-  ArrowLeft, Aperture, Camera, Check, ChevronRight, Download, FlipHorizontal2, Settings, UserRound,
+  ArrowLeft, Aperture, Camera, Check, ChevronRight, Download, FlipHorizontal2, Settings, UserRound, Menu, Bot, ScanFace,
   Image as ImageIcon, LockKeyhole, Mic, Play, RotateCcw, ShieldCheck, Sparkles,
   Video, X, Zap, Clapperboard
 } from "lucide-react";
@@ -44,8 +44,11 @@ const BEAUTY_PRESETS: BeautyPreset[] = [
   { id: "noir", name: "Noir", filter: "grayscale(1) contrast(1.28) brightness(.96)", description: "Đen trắng điện ảnh" },
 ];
 
+function RobotFaceScan(){return <div className="tw-robot-wrap" aria-label="Robot AI quét khuôn mặt"><div className="tw-robot-aura"/><svg className="tw-robot-svg" viewBox="0 0 220 220" role="img" aria-hidden="true"><defs><linearGradient id="thu-robot-metal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ffe4d9"/><stop offset=".48" stopColor="#d99c91"/><stop offset="1" stopColor="#855d63"/></linearGradient><linearGradient id="thu-robot-screen" x1="0" y1="0" x2="0" y2="1"><stop stopColor="#172b30"/><stop offset="1" stopColor="#091416"/></linearGradient></defs><path d="M110 17v17M102 17h16" stroke="#f5c5b6" strokeWidth="5" strokeLinecap="round"/><circle cx="110" cy="13" r="7" fill="#f5c5b6"/><rect x="30" y="45" width="160" height="137" rx="42" fill="url(#thu-robot-metal)" stroke="#ffe0d4" strokeWidth="3"/><rect x="45" y="61" width="130" height="104" rx="30" fill="url(#thu-robot-screen)" stroke="#f8cbbd" strokeOpacity=".6" strokeWidth="2"/><path d="M26 88H14m192 0h-12" stroke="#e9b6aa" strokeWidth="8" strokeLinecap="round"/><circle cx="110" cy="112" r="35" fill="none" stroke="#e6b6aa" strokeOpacity=".5" strokeDasharray="3 5"/><path d="M87 102q8-9 16 0m14 0q8-9 16 0" fill="none" stroke="#f8e1d8" strokeWidth="5" strokeLinecap="round"/><path d="M94 129q16 13 32 0" fill="none" stroke="#eab2a6" strokeWidth="4" strokeLinecap="round"/><path className="tw-robot-scan-line" d="M55 112h110" stroke="#72f4cb" strokeWidth="3" strokeLinecap="round" filter="drop-shadow(0 0 5px #72f4cb)"/><path d="M66 82v-9h9m70 0h9v9M66 145v9h9m70 0h9v-9" fill="none" stroke="#72f4cb" strokeWidth="2.5" strokeLinecap="round"/><rect x="70" y="182" width="80" height="13" rx="6.5" fill="#d89e93"/><circle cx="110" cy="188.5" r="3" fill="#fff0e8"/></svg><span className="tw-robot-status"><i/> AI FACE SCAN</span></div>}
 export function THU365WebApp() {
   const [screen, setScreen] = useState<Screen>("home");
+  const [homeMenuOpen, setHomeMenuOpen] = useState(false);
+  const [activeHomeReference, setActiveHomeReference] = useState(BEAUTY_REFERENCES[0].id);
   const [activeModule, setActiveModule] = useState("album");
   const [facing, setFacing] = useState<CameraFacing>("user");
   const [mode, setMode] = useState<MediaKind>("image");
@@ -551,41 +554,69 @@ export function THU365WebApp() {
       <input ref={fileRef} className="tw-hidden" type="file" accept="image/*,video/*" onChange={(event) => { selectLibraryFile(event.target.files?.[0]); event.currentTarget.value = ""; }} />
       {screen === "home" && (
         <section className="tw-home">
-          <header className="tw-header">
+          <header className="tw-header tw-home-header">
+            <button className="tw-hamburger" onClick={() => setHomeMenuOpen(true)} aria-label="Mở menu điều hướng"><Menu size={24}/></button>
             <div className="tw-brand"><img src="/thu365/app-icon.svg" alt="" />Anh<span>Thu</span></div>
-            <div className="tw-private"><LockKeyhole size={12} /> RIÊNG TƯ TRƯỚC TIÊN</div>
+            <div className="tw-private"><LockKeyhole size={12} /> RIÊNG TƯ</div>
           </header>
-          <div className="tw-hero">
+          {homeMenuOpen && <div className="tw-nav-layer">
+            <button className="tw-nav-scrim" onClick={() => setHomeMenuOpen(false)} aria-label="Đóng menu"/>
+            <nav className="tw-nav-drawer" aria-label="Điều hướng chính">
+              <div className="tw-nav-heading"><div className="tw-brand"><img src="/thu365/app-icon.svg" alt=""/>Anh<span>Thu</span></div><button onClick={() => setHomeMenuOpen(false)} aria-label="Đóng menu"><X size={22}/></button></div>
+              <div className="tw-nav-caption">KHÔNG GIAN SÁNG TẠO</div>
+              <button className="tw-nav-feature" onClick={() => { setHomeMenuOpen(false); setShortVideoMode(false); setMode("image"); setError(""); setScreen("permission"); }}><Camera/><span><b>Camera làm đẹp</b><small>Chụp ảnh · quay video · AR</small></span><ChevronRight/></button>
+              <div className="tw-nav-grid">
+                <button onClick={() => {setHomeMenuOpen(false);setActiveModule("album");setScreen("module");}}><ImageIcon/><b>Album</b></button>
+                <button onClick={() => {setHomeMenuOpen(false);setActiveModule("editor");setScreen("module");}}><Aperture/><b>Chỉnh sửa ảnh</b></button>
+                <button onClick={() => {setHomeMenuOpen(false);setActiveModule("sharp");setScreen("module");}}><Zap/><b>Làm nét AI</b></button>
+                <button onClick={() => {setHomeMenuOpen(false);setActiveModule("beauty");setScreen("module");}}><Sparkles/><b>AI làm đẹp</b></button>
+                <button onClick={() => {setHomeMenuOpen(false);setActiveModule("effects");setScreen("module");}}><ScanFace/><b>Hiệu ứng</b></button>
+                <button onClick={() => {setHomeMenuOpen(false);setActiveModule("short-video");setShortVideoMode(true);setMode("video");setError("");setScreen("permission");}}><Clapperboard/><b>Video ngắn</b></button>
+                <button onClick={() => {setHomeMenuOpen(false);setActiveModule("settings");setScreen("module");}}><Settings/><b>Cài đặt</b></button>
+                <button onClick={() => {setHomeMenuOpen(false);setActiveModule("profile");setScreen("module");}}><UserRound/><b>Hồ sơ</b></button>
+              </div>
+              <div className="tw-nav-bottom"><ShieldCheck size={15}/> Ảnh và video được xử lý riêng tư trên thiết bị.</div>
+            </nav>
+          </div>}
+          <div className="tw-hero tw-home-hero">
             <div className="tw-hero-orbit" />
             <div className="tw-hero-copy">
-              <span className="tw-eyebrow"><Sparkles size={13} /> BEAUTY CAMERA STUDIO</span>
-              <h1>Đẹp theo<br /><em>cách của bạn.</em></h1>
-              <p>Chụp ảnh, thử sắc thái và lưu khoảnh khắc ngay trên thiết bị.</p>
+              <span className="tw-eyebrow"><Sparkles size={13}/> BEAUTY CAMERA STUDIO</span>
+              <h1>Chân dung đẹp<br/><em>theo phong cách bạn.</em></h1>
+              <p>AI phân tích khuôn mặt, gợi ý makeup và ánh sáng phù hợp với ảnh mẫu.</p>
+              <button className="tw-home-primary" onClick={() => {setShortVideoMode(false);setMode("image");setError("");setScreen("permission");}}><Camera size={17}/> Mở camera làm đẹp</button>
             </div>
-            <div className="tw-hero-mark"><Aperture size={74} strokeWidth={0.8} /></div>
+            <div className="tw-hero-mark"><RobotFaceScan/></div>
           </div>
-          <div className="tw-section-head"><strong>Không gian sáng tạo</strong><span>ANHTHU STUDIO</span></div>
-          <div className="tw-module-grid">
-            <button className="tw-module-card tw-module-feature" onClick={() => { setShortVideoMode(false); setMode("image"); setError(""); setScreen("permission"); }}><span className="tw-module-icon"><Camera size={22}/></span><b>Camera làm đẹp</b><small>Chụp ảnh · quay video · AR trực tiếp</small></button>
-            <button className="tw-module-card" onClick={() => { setActiveModule("album"); setScreen("module"); }}><span className="tw-module-icon"><ImageIcon size={22}/></span><b>Album</b><small>Ảnh và video trên điện thoại</small></button>
-            <button className="tw-module-card" onClick={() => { setActiveModule("editor"); setScreen("module"); }}><span className="tw-module-icon"><Aperture size={22}/></span><b>Chỉnh sửa ảnh</b><small>Cắt, màu sắc và ánh sáng</small></button>
-            <button className="tw-module-card" onClick={() => { setActiveModule("sharp"); setScreen("module"); }}><span className="tw-module-icon"><Zap size={22}/></span><b>Làm nét ảnh AI</b><small>Phục hồi ảnh mờ · giảm nhiễu</small></button>
-            <button className="tw-module-card" onClick={() => { setActiveModule("beauty"); setScreen("module"); }}><span className="tw-module-icon"><Sparkles size={22}/></span><b>AI làm đẹp</b><small>Da, makeup và nhận diện khuôn mặt</small></button>
-            <button className="tw-module-card" onClick={() => { setActiveModule("effects"); setScreen("module"); }}><span className="tw-module-icon"><Check size={22}/></span><b>Hiệu ứng quốc tế</b><small>Phong cách Trung Quốc · Hàn Quốc</small></button>
-            <button className="tw-module-card tw-module-feature" onClick={() => { setActiveModule("short-video"); setShortVideoMode(true); setMode("video"); setError(""); setScreen("permission"); }}><span className="tw-module-icon"><Clapperboard size={22}/></span><b>Video ngắn</b><small>Quay video dọc tối đa 60 giây · Beauty realtime</small></button>
-            <button className="tw-module-card" onClick={() => { setActiveModule("settings"); setScreen("module"); }}><span className="tw-module-icon"><Settings size={22}/></span><b>Cài đặt ứng dụng</b><small>Full HD · FPS · chất lượng quay</small></button>
-            <button className="tw-module-card" onClick={() => { setActiveModule("profile"); setScreen("module"); }}><span className="tw-module-icon"><UserRound size={22}/></span><b>Hồ sơ</b><small>Thông tin cá nhân trên thiết bị</small></button>
-          </div>
-          <button className="tw-action-card" onClick={() => fileRef.current?.click()}>
-            <span className="tw-action-icon"><ImageIcon size={22} /></span>
-            <span className="tw-action-copy"><b>Chọn nhanh ảnh hoặc video</b><small>Mở bộ chọn ảnh an toàn của iOS / Android</small></span>
-            <ChevronRight size={18} />
-          </button>
-          <div className="tw-privacy-note"><ShieldCheck size={15} /><span><b>Riêng tư mặc định.</b> Ảnh/video chỉ ở trong trình duyệt, không tải lên máy chủ. Hãy lưu tệp trước khi đóng ứng dụng.</span></div>
+          <section className="tw-home-ai">
+            <div className="tw-home-section-title"><div><span>ANHTHU AI</span><h2>Trợ lý làm đẹp thông minh</h2></div><badge>LIVE SCAN</badge></div>
+            <div className="tw-ai-assistant-card"><RobotFaceScan/><div><b>Robot AI đang chờ bạn</b><p>Đưa khuôn mặt vào khung. AI sẽ nhận diện điểm mắt, mũi, môi và phân tích ánh sáng trước khi đề xuất hiệu ứng.</p><small><span/> FACE TRACKING · LANDMARK · BEAUTY MATCH</small></div></div>
+          </section>
+          <section className="tw-home-references">
+            <div className="tw-home-section-title"><div><span>BEAUTY REFERENCE</span><h2>Chọn phong cách mẫu</h2></div><small>4 LOOKS</small></div>
+            <div className="tw-home-reference-grid">
+              {BEAUTY_REFERENCES.map((reference) => <button key={reference.id} className={activeHomeReference===reference.id?"is-selected":""} onClick={() => setActiveHomeReference(reference.id)}>
+                <img src={reference.image} alt={reference.name} loading="lazy"/>
+                <span className="tw-ref-overlay"><b>{reference.name}</b><small>{reference.subtitle}</small></span>
+                {activeHomeReference===reference.id&&<span className="tw-ref-selected"><Check size={13}/> Đang chọn</span>}
+              </button>)}
+            </div>
+            <div className="tw-home-reference-detail"><div><b>{BEAUTY_REFERENCES.find(item=>item.id===activeHomeReference)?.name}</b><small>{BEAUTY_REFERENCES.find(item=>item.id===activeHomeReference)?.description}</small></div><button onClick={() => {const ref=BEAUTY_REFERENCES.find(item=>item.id===activeHomeReference);if(ref){setArSettings(ref.settings);setBeauty(ref.beauty);}setShortVideoMode(false);setMode("image");setError("");setScreen("permission");}}>Thử phong cách <ChevronRight size={15}/></button></div>
+          </section>
+          <section className="tw-home-features">
+            <div className="tw-home-section-title"><div><span>KHÁM PHÁ</span><h2>Công cụ nổi bật</h2></div></div>
+            <div className="tw-home-feature-grid">
+              <article><Sparkles/><b>AI Beauty</b><small>Làm mịn da, makeup và tinh chỉnh khuôn mặt.</small></article>
+              <article><ScanFace/><b>Face Tracking</b><small>Theo dõi landmark khi chụp và quay video.</small></article>
+              <article><Aperture/><b>Photo Studio</b><small>Màu phim, ánh sáng, phông nền và chân dung.</small></article>
+              <article><Clapperboard/><b>Video Effects</b><small>Hiệu ứng realtime cho video dọc.</small></article>
+            </div>
+          </section>
+          <button className="tw-action-card" onClick={() => fileRef.current?.click()}><span className="tw-action-icon"><ImageIcon size={22}/></span><span className="tw-action-copy"><b>Chọn nhanh ảnh hoặc video</b><small>Mở bộ chọn ảnh an toàn của iOS / Android</small></span><ChevronRight size={18}/></button>
+          <div className="tw-privacy-note"><ShieldCheck size={15}/><span><b>Riêng tư mặc định.</b> Ảnh/video chỉ ở trong trình duyệt, không tải lên máy chủ.</span></div>
           <footer className="tw-footer">ANHTHU BEAUTY · BẢN DÙNG THỬ PWA</footer>
         </section>
       )}
-
       {screen === "module" && (
         <section className="tw-module-screen">
           <header className="tw-preview-header">
@@ -852,7 +883,65 @@ export function THU365WebApp() {
         .tw-filter-row-expanded .tw-ar-tools label{font-size:11px}
         @media(min-width:700px){.tw-filter-row-expanded{left:50%!important;right:auto!important;top:24px!important;bottom:24px!important;width:min(720px,calc(100vw - 48px))!important;transform:translateX(-50%)}.tw-filter-row-expanded .tw-reference-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
         
-      `}</style>
+        .tw-home-header{display:grid!important;grid-template-columns:42px 1fr auto!important;align-items:center;gap:10px}
+        .tw-hamburger{width:40px;height:40px;display:grid;place-items:center;border:1px solid #ffffff20;border-radius:13px;background:#211b1bd9;color:#f7e8e2}
+        .tw-home-header .tw-brand{justify-self:center}
+        .tw-nav-layer{position:fixed;z-index:120;inset:0}
+        .tw-nav-scrim{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000b;backdrop-filter:blur(5px)}
+        .tw-nav-drawer{position:absolute;inset:0 auto 0 0;width:min(88vw,390px);padding:max(22px,env(safe-area-inset-top)) 18px max(24px,env(safe-area-inset-bottom));overflow-y:auto;background:linear-gradient(160deg,#211819,#09090b 72%);border-right:1px solid #e5b6aa35;box-shadow:22px 0 70px #0009;animation:thu-nav-in .24s ease-out}
+        @keyframes thu-nav-in{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+        .tw-nav-heading{display:flex;align-items:center;justify-content:space-between;padding:6px 0 25px}
+        .tw-nav-heading>button{width:40px;height:40px;border:1px solid #ffffff22;border-radius:50%;background:#ffffff0c;color:#fff}
+        .tw-nav-caption{font-size:10px;letter-spacing:.16em;color:#e5b6aa;margin:5px 0 12px;font-weight:800}
+        .tw-nav-feature{width:100%;display:flex;align-items:center;gap:12px;padding:15px;border:1px solid #e5b6aa66;border-radius:16px;background:linear-gradient(110deg,#e5b6aa26,#ffffff08);color:#f8e8e2;text-align:left}
+        .tw-nav-feature>svg:first-child{color:#e5b6aa;width:24px;height:24px}
+        .tw-nav-feature>svg:last-child{margin-left:auto;width:17px}
+        .tw-nav-feature span{display:grid;gap:4px}.tw-nav-feature b{font-size:13px}.tw-nav-feature small{font-size:10px;color:#bdaea9}
+        .tw-nav-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:12px}
+        .tw-nav-grid button{min-height:88px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:10px;padding:13px;border:1px solid #ffffff18;border-radius:14px;background:#ffffff08;color:#f4e8e3;text-align:left}
+        .tw-nav-grid button svg{width:20px;height:20px;color:#e5b6aa}.tw-nav-grid button b{font-size:11px}
+        .tw-nav-bottom{display:flex;gap:8px;align-items:center;margin-top:22px;padding:13px;border-radius:12px;background:#ffffff08;color:#b9aaa5;font-size:10px;line-height:1.5}.tw-nav-bottom svg{flex:0 0 auto;color:#e5b6aa}
+        .tw-home-hero{min-height:300px!important;height:auto!important;padding:26px 20px!important;display:flex!important;align-items:center;overflow:hidden}
+        .tw-home-hero .tw-hero-copy{position:relative;z-index:2;max-width:68%}
+        .tw-home-hero h1{font-size:clamp(29px,8vw,43px)!important;line-height:1.06!important}
+        .tw-home-hero p{font-size:12px!important;line-height:1.6}
+        .tw-home-primary{display:inline-flex;align-items:center;gap:8px;margin-top:10px;padding:12px 15px;border:0;border-radius:99px;background:#e5b6aa;color:#251918;font-weight:800;font-size:11px}
+        .tw-home-hero .tw-hero-mark{position:absolute!important;right:-8px!important;bottom:16px!important;opacity:1!important}
+        .tw-robot-wrap{position:relative;width:clamp(125px,38vw,190px);display:grid;justify-items:center;filter:drop-shadow(0 12px 24px #0008)}
+        .tw-robot-aura{position:absolute;inset:8% 0 18%;border-radius:50%;background:radial-gradient(circle,#e5b6aa3d,transparent 68%);animation:thu-robot-pulse 3s ease-in-out infinite}
+        .tw-robot-svg{position:relative;width:100%;overflow:visible}
+        .tw-robot-scan-line{animation:thu-face-scan 2.3s ease-in-out infinite}
+        @keyframes thu-face-scan{0%,100%{transform:translateY(-25px);opacity:.35}50%{transform:translateY(28px);opacity:1}}
+        @keyframes thu-robot-pulse{0%,100%{transform:scale(.92);opacity:.55}50%{transform:scale(1.08);opacity:1}}
+        .tw-robot-status{display:flex;align-items:center;gap:6px;margin-top:-4px;padding:6px 9px;border:1px solid #72f4cb40;border-radius:99px;background:#0c1716;color:#a5f7dd;font-size:8px;font-weight:800;letter-spacing:.12em}
+        .tw-robot-status i,.tw-ai-assistant-card small span{width:6px;height:6px;border-radius:50%;background:#72f4cb;box-shadow:0 0 9px #72f4cb}
+        .tw-home-ai,.tw-home-references,.tw-home-features{margin:24px 0}
+        .tw-home-section-title{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:12px}
+        .tw-home-section-title>div>span{font-size:9px;letter-spacing:.18em;color:#e5b6aa;font-weight:800}
+        .tw-home-section-title h2{margin:5px 0 0;font:500 21px Georgia,serif;color:#fff1eb}
+        .tw-home-section-title>small{font-size:9px;color:#b8aaa4}
+        .tw-ai-assistant-card{display:flex;align-items:center;gap:13px;padding:15px;border:1px solid #e5b6aa35;border-radius:18px;background:radial-gradient(circle at 0 0,#e5b6aa20,transparent 60%),#171313}
+        .tw-ai-assistant-card .tw-robot-wrap{width:112px;flex:0 0 112px}
+        .tw-ai-assistant-card .tw-robot-status{font-size:7px}
+        .tw-ai-assistant-card>div:last-child{min-width:0}
+        .tw-ai-assistant-card b{font-size:13px}.tw-ai-assistant-card p{font-size:10px;line-height:1.55;color:#c0b3ae;margin:7px 0}
+        .tw-ai-assistant-card small{display:flex;align-items:center;gap:6px;font-size:7px;letter-spacing:.06em;color:#a4e9d3}
+        .tw-home-reference-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+        .tw-home-reference-grid>button{position:relative;min-width:0;height:190px;overflow:hidden;padding:0;border:1px solid #ffffff20;border-radius:15px;background:#1c1717;text-align:left}
+        .tw-home-reference-grid>button.is-selected{border:2px solid #e5b6aa;box-shadow:0 0 0 2px #e5b6aa26}
+        .tw-home-reference-grid img{width:100%;height:100%;object-fit:cover;display:block}
+        .tw-ref-overlay{position:absolute;inset:auto 0 0;padding:28px 10px 10px;display:grid;gap:4px;background:linear-gradient(transparent,#090708eF);color:#fff}
+        .tw-ref-overlay b{font-size:10px;line-height:1.3}.tw-ref-overlay small{font-size:8px;color:#e5d4ce}
+        .tw-ref-selected{position:absolute;top:8px;left:8px;display:flex;align-items:center;gap:4px;padding:5px 7px;border-radius:99px;background:#e5b6aa;color:#211615;font-size:8px;font-weight:800}
+        .tw-home-reference-detail{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding:12px;border:1px solid #ffffff18;border-radius:13px;background:#ffffff08}
+        .tw-home-reference-detail>div{display:grid;gap:4px;min-width:0}.tw-home-reference-detail b{font-size:10px}.tw-home-reference-detail small{font-size:9px;color:#b6a9a4;line-height:1.4}
+        .tw-home-reference-detail>button{display:flex;align-items:center;gap:4px;flex:0 0 auto;padding:9px 10px;border:0;border-radius:99px;background:#e5b6aa;color:#241817;font-size:9px;font-weight:800}
+        .tw-home-feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+        .tw-home-feature-grid article{display:grid;gap:7px;padding:14px;border:1px solid #ffffff17;border-radius:14px;background:#ffffff08}
+        .tw-home-feature-grid svg{width:20px;height:20px;color:#e5b6aa}.tw-home-feature-grid b{font-size:11px}.tw-home-feature-grid small{font-size:9px;line-height:1.45;color:#b8aaa4}
+        @media(max-width:380px){.tw-home-hero .tw-hero-copy{max-width:72%}.tw-home-hero .tw-hero-mark{right:-20px!important}.tw-ai-assistant-card .tw-robot-wrap{width:94px;flex-basis:94px}.tw-home-reference-grid>button{height:165px}}
+        @media(prefers-reduced-motion:reduce){.tw-nav-drawer,.tw-robot-aura,.tw-robot-scan-line{animation:none!important}}
+              `}</style>
     </main>
   );
 }
