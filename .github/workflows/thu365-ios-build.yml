@@ -35,9 +35,11 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Build web app
         run: pnpm build
+      - name: Install temporary Capacitor toolchain
+        run: pnpm add -D @capacitor/cli@^7.4.3 @capacitor/core@^7.4.3 @capacitor/ios@^7.4.3
       - name: Generate and sync Capacitor iOS project
         run: |
           pnpm exec cap add ios
