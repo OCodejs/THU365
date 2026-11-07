@@ -189,6 +189,21 @@ export function THU365WebApp() {
     }catch(cause){const message=cause instanceof Error?cause.message:"Không thể tải model";setAiModelStates(v=>({...v,[model.id]:{installed:false,bytes:0,downloading:false,progress:0,error:message}}));showNotice("Tải model thất bại · kiểm tra mạng hoặc CORS");}
     finally{setAiModelBusy(false);}
   }
+  async function downloadRequiredAIModels() {
+    const standalone=window.matchMedia?.("(display-mode: standalone)").matches||(navigator as any).standalone===true;
+    if(!standalone){setActiveModule("setup");setScreen("module");showNotice("Cài và mở AnhThu từ Màn hình chính trước khi tải AI.");return;}
+    for(const model of AI_MODEL_PACKS.filter(item=>item.required)){
+      await downloadAIModel(model);
+      try{
+        const cache=await caches.open(AI_MODEL_CACHE);
+        const response=await cache.match(model.url);
+        const blob=response?await response.blob():null;
+        if(!await validateAIModelBlob(model,blob)){showNotice("Chưa cài xong "+model.name+". Kiểm tra lỗi tải rồi thử lại.");break;}
+      }catch{showNotice("Không kiểm tra được model "+model.name+" trong bộ nhớ.");break;}
+    }
+    await refreshAIModelInventory();
+  }
+
   async function removeAIModel(model:AIModelPack){
     try{const cache=await caches.open(AI_MODEL_CACHE);await cache.delete(model.url);setAiModelStates(v=>({...v,[model.id]:{installed:false,bytes:0,downloading:false,progress:0,error:""}}));showNotice("Đã xóa model "+model.name+" khỏi thiết bị");}
     catch{showNotice("Không thể xóa model khỏi bộ nhớ trình duyệt");}
@@ -858,7 +873,8 @@ export function THU365WebApp() {
           ) : activeModule === "ai-models" ? (
             <div className="tw-ai-model-center">
               <div className="tw-ai-model-hero"><span><BrainCircuit size={26}/></span><div><b>AI Model Center</b><p>Tải, quản lý và xóa các mô hình AI dùng cho camera làm đẹp. Model được lưu trong bộ nhớ trình duyệt trên thiết bị này.</p></div></div>
-              <div className="tw-ai-model-summary"><div><b>{Object.values(aiModelStates).filter(x=>x.installed).length}/{AI_MODEL_PACKS.length}</b><small>Model đã cài</small></div><div><b>{(Object.values(aiModelStates).reduce((n,x)=>n+x.bytes,0)/1048576).toFixed(1)} MB</b><small>Dung lượng đã lưu</small></div><button onClick={()=>void refreshAIModelInventory()}><RotateCcw size={14}/> Làm mới</button></div>
+              <div className="tw-ai-model-summary"><div><b>{Object.values(aiModelStates).filter(x=>x.installed).length}/{AI_MODEL_PACKS.length}</b><small>Model đã cài</small></div>
+              <button className="tw-suite-primary" disabled={aiModelBusy||AI_MODEL_PACKS.filter(model=>model.required).every(model=>aiModelStates[model.id]?.installed)} onClick={()=>void downloadRequiredAIModels()}><Download size={15}/> Tải toàn bộ AI bắt buộc</button><div><b>{(Object.values(aiModelStates).reduce((n,x)=>n+x.bytes,0)/1048576).toFixed(1)} MB</b><small>Dung lượng đã lưu</small></div><button onClick={()=>void refreshAIModelInventory()}><RotateCcw size={14}/> Làm mới</button></div>
               <div className="tw-ai-model-list">{AI_MODEL_PACKS.map(model=>{const state=aiModelStates[model.id]||{installed:false,bytes:0,downloading:false,progress:0,error:""};return <article className="tw-ai-model-card" key={model.id}>
                 <div className="tw-ai-model-card-top"><span className="tw-ai-model-icon">{model.id==="face"?<ScanFace size={21}/>:<Sparkles size={21}/>}</span><div><b>{model.name}</b><small>{model.version} · {model.required?"Cốt lõi":"Tùy chọn"}</small></div><span className={state.installed?"tw-ai-model-installed":"tw-ai-model-cloud"}>{state.installed?<Check size={14}/>:<Wifi size={14}/>}</span></div>
                 <p>{model.description}</p><div className="tw-ai-model-meta"><span><HardDrive size={13}/> {state.installed?(state.bytes/1048576).toFixed(2)+" MB đã lưu":model.sizeLabel}</span><span><Cpu size={13}/> Thiết bị</span></div>
