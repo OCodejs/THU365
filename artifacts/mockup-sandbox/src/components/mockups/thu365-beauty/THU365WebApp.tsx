@@ -67,6 +67,13 @@ export function THU365WebApp() {
   const [faceInsight, setFaceInsight] = useState("Đưa khuôn mặt vào khung hình để AI phân tích góc và tỷ lệ landmark");
   const [referenceCompare, setReferenceCompare] = useState(true);
   const activePreset = BEAUTY_PRESETS.find((item) => item.id === preset) ?? BEAUTY_PRESETS[0];
+  const activeDocsReference = BEAUTY_REFERENCES.find((item) => item.id === (
+    activeDocsTopic === "face" || activeDocsTopic === "face-shape" ? "cn-male-clean" :
+    activeDocsTopic === "skin" || activeDocsTopic === "makeup" || activeDocsTopic === "light" ? "cn-female-glass" :
+    activeDocsTopic === "hair" || activeDocsTopic === "ar" ? "cn-female-peach" :
+    activeDocsTopic === "background" || activeDocsTopic === "video" ? "cn-male-douyin" :
+    activeDocsTopic === "reference" ? selectedReference : "cn-female-glass"
+  )) ?? BEAUTY_REFERENCES[0];
   const [recording, setRecording] = useState(false);
   const [shortVideoMode, setShortVideoMode] = useState(false);
   const [videoLimitSeconds, setVideoLimitSeconds] = useState(600);
@@ -652,6 +659,14 @@ export function THU365WebApp() {
                 <div className="tw-docs-meta"><span><BookOpen size={12}/> 12 hướng dẫn</span><span><BrainCircuit size={12}/> AI & AR</span><span><ShieldCheck size={12}/> Privacy-first</span></div>
               </div>
               <div className="tw-docs-notice"><ShieldCheck size={17}/><p><b>Minh bạch tính năng:</b> tài liệu phân biệt công cụ đang có, tính năng cần model AI và hạng mục đang lên kế hoạch. Không phải hướng dẫn nào cũng đồng nghĩa model đã được cài đặt.</p></div>
+              <div className="tw-docs-inspiration">
+                <div><span>LOOKBOOK</span><b>Ảnh phong cách tham khảo</b><small>Chọn look để áp dụng ngay trong camera</small></div>
+                <div className="tw-docs-look-grid">
+                  {BEAUTY_REFERENCES.map((reference) => <button key={reference.id} onClick={() => {applyReferenceLook(reference);setShortVideoMode(false);setMode("image");setError("");setScreen("permission");}}>
+                    <img src={reference.image} alt={reference.name} loading="lazy"/><b>{reference.name}</b><small>{reference.gender} · {reference.beauty}%</small>
+                  </button>)}
+                </div>
+              </div>
               <div className="tw-docs-topic-list">
                 {[
                   {id:"overview",icon:<Sparkles/>,title:"Bắt đầu với AnhThu Beauty",tag:"CƠ BẢN",desc:"Luồng camera, chọn ảnh mẫu, áp dụng preset và lưu kết quả."},
@@ -671,6 +686,12 @@ export function THU365WebApp() {
                 </button>)}
               </div>
               <article className="tw-docs-article">
+                <div className="tw-docs-example">
+                  <img src={activeDocsReference.image} alt={activeDocsReference.name} loading="lazy"/>
+                  <div><span>LOOK THAM KHẢO · {activeDocsReference.gender.toUpperCase()}</span><b>{activeDocsReference.name}</b><small>{activeDocsReference.description}</small>
+                    <button onClick={() => {applyReferenceLook(activeDocsReference);setShortVideoMode(false);setMode("image");setError("");setScreen("permission");}}><Camera size={14}/> Thử phong cách này</button>
+                  </div>
+                </div>
                 {activeDocsTopic==="overview" ? <>
                   <span className="tw-docs-kicker">GETTING STARTED</span><h3>Bắt đầu trong 4 bước</h3>
                   <ol><li>Mở Camera Beauty và cấp quyền camera khi iPhone/Safari hỏi.</li><li>Chọn phong cách mẫu hoặc preset có sẵn; mẫu chỉ là gợi ý màu và makeup.</li><li>Chuyển sang Thủ công để tinh chỉnh từng thông số, hoặc Auto để dùng cấu hình gợi ý.</li><li>Chụp/quay, xem trước, sau đó lưu hoặc chia sẻ kết quả.</li></ol>
@@ -1059,6 +1080,18 @@ export function THU365WebApp() {
         .tw-docs-home-card{width:100%;display:flex;align-items:center;gap:11px;margin:5px 0 14px;padding:13px;border:1px solid #e5b6aa55;border-radius:15px;background:linear-gradient(110deg,#e5b6aa1c,#ffffff08);color:#f6e8e2;text-align:left}
         .tw-docs-home-card>span{width:39px;height:39px;display:grid;place-items:center;flex:0 0 auto;border-radius:12px;background:#e5b6aa24;color:#e5b6aa}
         .tw-docs-home-card>div{display:grid;gap:4px;min-width:0;flex:1}.tw-docs-home-card b{font-size:11px}.tw-docs-home-card small{font-size:9px;color:#b8aaa4;line-height:1.45}
+        .tw-docs-inspiration{padding:13px;border:1px solid #e5b6aa38;border-radius:16px;background:linear-gradient(145deg,#21191a,#111012)}
+        .tw-docs-inspiration>div:first-child{display:grid;gap:4px;margin-bottom:10px}.tw-docs-inspiration>div:first-child span{font-size:8px;letter-spacing:.15em;color:#e5b6aa;font-weight:800}.tw-docs-inspiration>div:first-child b{font:500 17px Georgia,serif;color:#fff0e9}.tw-docs-inspiration>div:first-child small{font-size:9px;color:#b9aaa4}
+        .tw-docs-look-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+        .tw-docs-look-grid button{min-width:0;padding:0 0 8px;overflow:hidden;border:1px solid #ffffff1a;border-radius:11px;background:#ffffff08;color:#f7eae4;text-align:left}
+        .tw-docs-look-grid img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover}
+        .tw-docs-look-grid b,.tw-docs-look-grid small{display:block;padding:0 6px}.tw-docs-look-grid b{margin-top:6px;font-size:8px;line-height:1.35}.tw-docs-look-grid small{margin-top:3px;color:#c2aaa0;font-size:7px}
+        .tw-docs-example{display:grid;grid-template-columns:112px minmax(0,1fr);gap:12px;margin-bottom:14px;padding:10px;border:1px solid #e5b6aa45;border-radius:13px;background:#e5b6aa0d}
+        .tw-docs-example>img{width:100%;height:145px;object-fit:cover;border-radius:9px}
+        .tw-docs-example>div{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0}
+        .tw-docs-example span{font-size:7px;letter-spacing:.12em;color:#e5b6aa;font-weight:800}.tw-docs-example b{font:500 14px Georgia,serif;color:#fff0e9}.tw-docs-example small{font-size:8px;line-height:1.45;color:#c8bbb5}
+        .tw-docs-example button{display:flex;align-items:center;gap:6px;margin-top:auto;padding:8px 10px;border:0;border-radius:9px;background:#e5b6aa;color:#24191a;font-size:9px;font-weight:800}
+        @media(max-width:380px){.tw-docs-look-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.tw-docs-example{grid-template-columns:90px minmax(0,1fr)}.tw-docs-example>img{height:125px}}
       `}</style>
     </main>
   );
