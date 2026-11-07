@@ -3,8 +3,7 @@
   "name": "anhthu",
   "compatibility_date": "2026-11-07",
   "assets": {
-    "directory": "./artifacts/mockup-sandbox/dist",
-    "binding": "ASSETS"
+    "directory": "./artifacts/mockup-sandbox/dist"
   },
   "previews": {}
 }
