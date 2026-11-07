@@ -6,7 +6,7 @@
 
 **Camera làm đẹp · AI hỗ trợ · Chỉnh sửa ảnh/video · Riêng tư trên thiết bị**
 
-[Web app / PWA](#cài-đặt-trên-iphone) · [Native iOS](#ứng-dụng-ios-native) · [Android](#android) · [Kiến trúc](#cấu-trúc-repository)
+[Web app / PWA](#cài-đặt-trên-iphone) · [Native iOS](./ios/README.md) · [Android](#android) · [Kiến trúc](#cấu-trúc-repository)
 
 </div>
 
@@ -104,6 +104,9 @@ Yêu cầu: Node.js, npm; Xcode trên macOS để build iOS; Android Studio đ�
 
     cd apps/thu365-mobile
     npm install
+    npm install --no-save sharp
+    mkdir -p assets
+    node -e "require('sharp')('../../artifacts/mockup-sandbox/public/thu365/app-icon.svg').resize(1024,1024).png().toFile('assets/icon.png')"
     npx expo install --check
     npx tsc --noEmit
     npx expo-doctor
