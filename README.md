@@ -8,6 +8,10 @@
 
 [Web app / PWA](#cài-đặt-trên-iphone) · [Native iOS](./ios/README.md) · [Android](#android) · [Kiến trúc](#cấu-trúc-repository)
 
+**Repository:** [github.com/OCodejs/THU365](https://github.com/OCodejs/THU365) · [GitHub Actions](https://github.com/OCodejs/THU365/actions)
+
+Clone: `git clone https://github.com/OCodejs/THU365.git`
+
 </div>
 
 ---
