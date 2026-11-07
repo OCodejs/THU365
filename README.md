@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./artifacts/mockup-sandbox/public/thu365/app-icon.svg" alt="THU365 app logo" width="160" />
+<img src="./assets/THU365_horizontal_logo.png" alt="THU365 — AnhThu Beauty Camera" width="420" />
 
 # THU365 — AnhThu Beauty Camera
 
@@ -11,6 +11,18 @@
 </div>
 
 ---
+
+## Bộ nhận diện THU365
+
+Thư mục [assets](./assets/) chứa các hình ảnh thương hiệu chính:
+
+| Biểu tượng ứng dụng | Huy hiệu thương hiệu |
+| --- | --- |
+| <img src="./assets/THU365_app_icon.png" alt="THU365 app icon" width="220" /> | <img src="./assets/THU365_badge_logo.png" alt="THU365 badge logo" width="220" /> |
+
+<img src="./assets/THU365_horizontal_logo.png" alt="THU365 horizontal logo" width="520" />
+
+> Dùng app icon cho biểu tượng ứng dụng, badge logo cho huy hiệu thương hiệu và logo ngang cho README/tài liệu giới thiệu.
 
 ## Giới thiệu
 
@@ -127,6 +139,7 @@ Yêu cầu: Node.js, npm; Xcode trên macOS để build iOS; Android Studio đ�
 
 | Đường dẫn | Nội dung |
 | --- | --- |
+| assets | Logo ứng dụng, huy hiệu và logo ngang THU365 |
 | artifacts/mockup-sandbox | Web app, PWA, camera UI và các module làm đẹp |
 | artifacts/mockup-sandbox/public/thu365 | Web app manifest, service worker và logo PWA |
 | apps/thu365-mobile | Native app React Native + Expo |
