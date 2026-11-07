@@ -136,9 +136,7 @@ function App() {
     ? window.location.pathname.slice(basePath.length) || "/"
     : window.location.pathname;
 
-  if (localPath === "/thu365" || localPath === "/thu365/") {
-    return <THU365PWA />;
-  }
+  // Serve the actual THU365 app at the deployment root so the public Preview URL\n  // opens the camera experience instead of the internal component gallery.\n  if (localPath === "/" || localPath === "/thu365" || localPath === "/thu365/") {\n    return <THU365PWA />;\n  }\n\n  if (localPath === "/workspace" || localPath === "/gallery") {\n    return <Gallery />;\n  }
 
   if (previewPath) {
     return (
