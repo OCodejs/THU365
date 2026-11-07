@@ -213,6 +213,7 @@ export function THU365WebApp() {
       }catch{showNotice("Không kiểm tra được model "+model.name+" trong bộ nhớ.");return false;}
     }
     await refreshAIModelInventory();
+    setAiRetry(value=>value+1);
     return true;
   }
 
@@ -244,17 +245,17 @@ export function THU365WebApp() {
     setIsStandalone(Boolean(standalone));
     if(!standalone){autoSetupStartedRef.current=false;setSetupStage("install");setActiveModule("setup");setScreen("module");return;}
     setActiveModule("setup");setScreen("module");
-    setSetupStage("models");
-    const modelsReady=await downloadRequiredAIModels();
-    if(!modelsReady){
-      showNotice("AI model chưa tải được · camera cơ bản vẫn có thể sử dụng. Bạn có thể thử tải lại trong AI Model Center.");
-    }
+    // Ask for camera permission first so the first-run flow can open the camera promptly.
+    // AI model downloads run after camera startup and never block basic capture.
     setSetupStage("camera");
     const permissionGranted=await requestSetupPermissions();
     if(!permissionGranted){autoSetupStartedRef.current=false;setSetupStage("camera");showNotice("Cần cho phép camera để hoàn tất. Chạm nút thử lại nếu hộp thoại chưa xuất hiện.");return;}
     setSetupStage("ready");
     localStorage.setItem("anhthu-setup-complete-v1","true");
     await startCamera();
+    setSetupStage("models");
+    const modelsReady=await downloadRequiredAIModels();
+    if(!modelsReady)showNotice("AI model chưa tải được · camera cơ bản vẫn hoạt động. Bạn có thể thử tải lại trong AI Model Center.");
   }
 
   async function refreshDevicePermissions() {
