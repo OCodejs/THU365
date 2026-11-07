@@ -41,7 +41,7 @@ Requirements: Node.js 22.13+, npm and Xcode.
     npx expo install --check
     npx tsc --noEmit
     npx expo-doctor
-    npx expo prebuild --platform ios --no-install --non-interactive
+    CI=1 npx expo prebuild --platform ios
     open ios/THU365.xcworkspace
 
 In Xcode, select the THU365 target, choose your own Apple Developer Team under Signing & Capabilities, and confirm the bundle identifier app.thu365.beautycamera.
