@@ -62,6 +62,11 @@ export function THU365WebApp() {
   const [mediaBlob, setMediaBlob] = useState<Blob | null>(null);
   const [mediaName, setMediaName] = useState("thu365-photo.jpg");
   const [notice, setNotice] = useState("");
+  const [editSettings, setEditSettings] = useState({brightness:100,contrast:100,saturation:100,warmth:0,hue:0,vignette:0,fade:0,rotation:0,aspect:"original",tone:"none"});
+  const [editPanel, setEditPanel] = useState<"light"|"color"|"crop"|"effects">("light");
+  const [showEditor, setShowEditor] = useState(true);
+  const [exportingEdit, setExportingEdit] = useState(false);
+  const editFilter = `brightness(${editSettings.brightness}%) contrast(${editSettings.contrast}%) saturate(${editSettings.saturation}%) hue-rotate(${editSettings.hue}deg)`;
   const [profileName, setProfileName] = useState(() => localStorage.getItem("anhthu-profile-name") || "AnhThu User");
   const [studioSettings, setStudioSettings] = useState(() => { try { return { photo: "1080", video: "1080", fps: "60", mirror: true, ...JSON.parse(localStorage.getItem("anhthu-studio-settings") || "{}") }; } catch { return { photo: "1080", video: "1080", fps: "60", mirror: true }; } });
   const [cameraQuality, setCameraQuality] = useState("Đang chờ camera");
@@ -405,9 +410,54 @@ export function THU365WebApp() {
     setScreen("preview");
   }
 
+  async function renderEditedPhoto(): Promise<Blob | null> {
+    if (!mediaBlob || mediaType !== "image") return mediaBlob;
+    const bitmap = await createImageBitmap(mediaBlob);
+    const sourceW = bitmap.width, sourceH = bitmap.height;
+    let targetW = sourceW, targetH = sourceH;
+    if (editSettings.aspect !== "original") {
+      const ratio = editSettings.aspect === "square" ? 1 : editSettings.aspect === "portrait" ? 4/5 : 16/9;
+      if (sourceW / sourceH > ratio) targetW = sourceH * ratio; else targetH = sourceW / ratio;
+    }
+    const canvas = document.createElement("canvas");
+    const swap = Math.abs(editSettings.rotation) % 180 === 90;
+    canvas.width = Math.round(swap ? targetH : targetW);
+    canvas.height = Math.round(swap ? targetW : targetH);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) { bitmap.close(); return null; }
+    ctx.save();
+    ctx.translate(canvas.width/2, canvas.height/2);
+    ctx.rotate(editSettings.rotation * Math.PI / 180);
+    ctx.filter = editFilter + ` sepia(${Math.max(0,editSettings.warmth)/500}) opacity(1)`;
+    const cropX = (sourceW-targetW)/2, cropY = (sourceH-targetH)/2;
+    ctx.drawImage(bitmap,cropX,cropY,targetW,targetH,-targetW/2,-targetH/2,targetW,targetH);
+    ctx.restore();
+    if (editSettings.tone !== "none") {
+      ctx.save(); ctx.globalCompositeOperation = "soft-light"; ctx.globalAlpha = .22;
+      ctx.fillStyle = editSettings.tone; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.restore();
+    }
+    if (editSettings.fade > 0) {
+      ctx.save(); ctx.globalAlpha = editSettings.fade/350; ctx.fillStyle = "#fff"; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.restore();
+    }
+    if (editSettings.vignette > 0) {
+      const radius = Math.max(canvas.width,canvas.height)*.72;
+      const gradient = ctx.createRadialGradient(canvas.width/2,canvas.height/2,radius*.25,canvas.width/2,canvas.height/2,radius);
+      gradient.addColorStop(0,"rgba(0,0,0,0)"); gradient.addColorStop(1,`rgba(0,0,0,${editSettings.vignette/120})`);
+      ctx.fillStyle=gradient; ctx.fillRect(0,0,canvas.width,canvas.height);
+    }
+    bitmap.close();
+    return await new Promise(resolve => canvas.toBlob(resolve,"image/jpeg",.94));
+  }
+
   async function saveOrShare() {
     if (!mediaBlob) return;
-    const file = new File([mediaBlob], mediaName, { type: mediaBlob.type || (mediaType === "image" ? "image/jpeg" : "video/mp4") });
+    setExportingEdit(true);
+    let outputBlob = mediaBlob;
+    if (mediaType === "image") {
+      try { outputBlob = await renderEditedPhoto() || mediaBlob; }
+      catch { showNotice("Không thể xuất ảnh đã chỉnh sửa. Thử lại."); setExportingEdit(false); return; }
+    }
+    const file = new File([outputBlob], mediaName.replace(/\\.[^.]+$/, mediaType === "image" ? ".jpg" : ".mp4"), { type: outputBlob.type || (mediaType === "image" ? "image/jpeg" : "video/mp4") });
     try {
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: "AnhThu Beauty" });
@@ -422,7 +472,8 @@ export function THU365WebApp() {
     document.body.appendChild(link);
     link.click();
     link.remove();
-    showNotice("Đã gửi yêu cầu lưu tệp. Kiểm tra Ảnh hoặc Tệp trên iPhone.");
+    showNotice("Đã gửi yêu cầu lưu tệp đã chỉnh sửa. Kiểm tra Ảnh hoặc Tệp trên iPhone.");
+    setExportingEdit(false);
   }
 
   function returnHome() {
@@ -615,10 +666,32 @@ export function THU365WebApp() {
             <button className="tw-back" onClick={() => { if (mediaUrl) URL.revokeObjectURL(mediaUrl); setMediaUrl(""); setMediaBlob(null); setScreen("home"); }} aria-label="Đóng"><X size={18} /></button>
           </header>
           <div className="tw-media-frame">
-            {mediaType === "image" ? <img src={mediaUrl} alt="Ảnh vừa chụp hoặc chọn" /> : <video src={mediaUrl} controls playsInline />}
+            {mediaType === "image" ? <img src={mediaUrl} alt="Ảnh đang chỉnh sửa" style={{filter:editFilter + ` sepia(${Math.max(0,editSettings.warmth)/500})`,transform:`rotate(${editSettings.rotation}deg)`}} /> : <video src={mediaUrl} controls playsInline style={{filter:editFilter}} />}
           </div>
+          {mediaType === "image" && <section className="tw-photo-editor" aria-label="Bộ công cụ chỉnh sửa ảnh">
+            <div className="tw-editor-heading"><div><b>✨ Photo Editor</b><small>Chỉnh sửa ảnh · xem trước trực tiếp</small></div><button type="button" onClick={() => setEditSettings({brightness:100,contrast:100,saturation:100,warmth:0,hue:0,vignette:0,fade:0,rotation:0,aspect:"original",tone:"none"})}>Đặt lại</button></div>
+            <nav className="tw-editor-tabs">
+              <button className={editPanel==="light"?"active":""} onClick={()=>setEditPanel("light")}>Ánh sáng</button><button className={editPanel==="color"?"active":""} onClick={()=>setEditPanel("color")}>Màu sắc</button><button className={editPanel==="crop"?"active":""} onClick={()=>setEditPanel("crop")}>Cắt ảnh</button><button className={editPanel==="effects"?"active":""} onClick={()=>setEditPanel("effects")}>Hiệu ứng</button>
+            </nav>
+            {editPanel==="light" && <div className="tw-editor-controls">
+              {([["brightness","Độ sáng",0,200],["contrast","Tương phản",0,200]] as const).map(([key,label,min,max])=><label key={key}>{label}<input type="range" min={min} max={max} value={editSettings[key]} onChange={e=>setEditSettings(v=>({...v,[key]:Number(e.target.value)}))}/><small>{editSettings[key]}%</small></label>)}
+            </div>}
+            {editPanel==="color" && <div className="tw-editor-controls">
+              {([["saturation","Độ bão hòa",0,200],["warmth","Nhiệt độ màu",-100,100],["hue","Sắc độ",-180,180]] as const).map(([key,label,min,max])=><label key={key}>{label}<input type="range" min={min} max={max} value={editSettings[key]} onChange={e=>setEditSettings(v=>({...v,[key]:Number(e.target.value)}))}/><small>{editSettings[key]}</small></label>)}
+              <div className="tw-tone-palette"><span>Tông phủ nền ảnh</span>{[["none","Tự nhiên"],["#f0b7a4","Peach"],["#d9b8e8","Lavender"],["#b7d9e8","Icy"],["#d5bd91","Vintage"],["#d99a9a","Rose"],["#a4b99b","Sage"]].map(([tone,label])=><button key={tone} className={editSettings.tone===tone?"selected":""} onClick={()=>setEditSettings(v=>({...v,tone))} style={{background:tone==="none"?"#252124":tone}} title={label}>{tone==="none"?"×":""}</button>)}</div>
+            </div>}
+            {editPanel==="crop" && <div className="tw-editor-controls">
+              <label>Tỷ lệ khung hình<select value={editSettings.aspect} onChange={e=>setEditSettings(v=>({...v,aspect:e.target.value}))}><option value="original">Gốc</option><option value="square">1:1 Vuông</option><option value="portrait">4:5 Chân dung</option><option value="landscape">16:9 Ngang</option></select></label>
+              <div className="tw-editor-actions"><button onClick={()=>setEditSettings(v=>({...v,rotation:(v.rotation+90)%360}))}>↻ Xoay 90°</button><button onClick={()=>setEditSettings(v=>({...v,rotation:(v.rotation+270)%360}))}>↺ Xoay trái</button></div>
+            </div>}
+            {editPanel==="effects" && <div className="tw-editor-controls">
+              {([["fade","Fade / Mờ",0,100],["vignette","Viền tối",0,100]] as const).map(([key,label,min,max])=><label key={key}>{label}<input type="range" min={min} max={max} value={editSettings[key]} onChange={e=>setEditSettings(v=>({...v,[key]:Number(e.target.value)}))}/><small>{editSettings[key]}%</small></label>)}
+              <div className="tw-tone-palette"><span>Bộ lọc màu nhanh</span>{BEAUTY_PRESETS.slice(0,13).map(item=><button key={item.id} onClick={()=>{setPreset(item.id);showNotice("Đã chọn màu "+item.name);}}>{item.name}</button>)}</div>
+            </div>}
+          </section>}
+          {mediaType === "video" && <p className="tw-local-note">Video hiện hỗ trợ xem trước bộ lọc màu; công cụ xuất chỉnh sửa ảnh chưa áp dụng lên video.</p>}
           <div className="tw-preview-actions">
-            <button className="tw-primary" onClick={() => void saveOrShare()}><Download size={17} /> Lưu hoặc chia sẻ</button>
+            <button className="tw-primary" disabled={exportingEdit} onClick={() => void saveOrShare()}><Download size={17} /> {exportingEdit ? "Đang xuất ảnh..." : "Lưu ảnh đã chỉnh sửa"}</button>
             <button className="tw-secondary" onClick={() => { if (mediaUrl) URL.revokeObjectURL(mediaUrl); setMediaUrl(""); setMediaBlob(null); setScreen("permission"); }}>Chụp lại</button>
           </div>
           <p className="tw-local-note"><LockKeyhole size={13} /> Tệp không được tải lên. Trên iPhone, chọn Lưu hình ảnh hoặc Lưu vào Tệp trong bảng chia sẻ.</p>
@@ -676,6 +749,7 @@ export function THU365WebApp() {
         .tw-side-button small{font-size:9px;color:#c4b8b2}.tw-shutter{width:76px;height:76px;display:grid;place-items:center;border:3px solid #fff;border-radius:50%;background:#ffffff26}
         .tw-shutter span{width:58px;height:58px;border-radius:50%;background:#f6f0ec}.tw-shutter.tw-recording span{width:25px;height:25px;border-radius:6px;background:#d86e63}
         .tw-mode-label{text-align:center;margin-top:13px;color:#e9c8bd;font-size:9px;font-weight:700;letter-spacing:.14em}
+        .tw-photo-editor{border:1px solid #ffffff20;border-radius:16px;background:#171313;padding:13px;display:grid;gap:12px}.tw-editor-heading{display:flex;align-items:center;justify-content:space-between}.tw-editor-heading>div{display:grid;gap:4px}.tw-editor-heading b{font-size:13px}.tw-editor-heading small{font-size:9px;color:#aaa09c}.tw-editor-heading>button,.tw-editor-actions button{border:1px solid #ffffff25;background:#242020;color:#f6f0ec;border-radius:9px;padding:8px 10px;font-size:10px}.tw-editor-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.tw-editor-tabs button{border:1px solid #ffffff20;border-radius:9px;background:#242020;color:#c8bfbb;padding:9px 3px;font-size:10px}.tw-editor-tabs button.active{background:#e5b6aa;color:#241816;border-color:#e5b6aa;font-weight:800}.tw-editor-controls{display:grid;gap:12px}.tw-editor-controls label{display:grid;grid-template-columns:1fr auto;align-items:center;gap:7px;font-size:10px;color:#eee4df}.tw-editor-controls input{grid-column:1/-1;width:100%;accent-color:#e5b6aa}.tw-editor-controls label small{color:#e5b6aa}.tw-editor-controls select{grid-column:1/-1;width:100%;padding:10px;border-radius:9px;background:#252124;color:#fff;border:1px solid #ffffff25}.tw-tone-palette{display:flex;flex-wrap:wrap;gap:7px;align-items:center}.tw-tone-palette span{width:100%;font-size:10px;color:#b9adaa}.tw-tone-palette button{min-width:31px;height:31px;border:2px solid #ffffff30;border-radius:50%;color:#211715;font-size:9px;padding:0}.tw-tone-palette button.selected{outline:2px solid #e5b6aa;outline-offset:2px}.tw-tone-palette button[title]{font-size:0}.tw-editor-actions{display:flex;gap:8px}.tw-editor-actions button{flex:1}
         .tw-preview-screen{display:flex;flex-direction:column;gap:20px}.tw-preview-header{display:flex;align-items:center;gap:13px}.tw-preview-header>div{display:flex;flex:1;flex-direction:column;gap:4px}.tw-preview-header b{font-size:13px}.tw-preview-header small{color:#aaa09c;font-size:9px}
         .tw-media-frame{flex:1;min-height:280px;max-height:65dvh;display:grid;place-items:center;overflow:hidden;border:1px solid #ffffff18;border-radius:18px;background:#151313}
         .tw-media-frame img,.tw-media-frame video{display:block;max-width:100%;max-height:65dvh;object-fit:contain}.tw-preview-actions{display:grid;gap:7px}
