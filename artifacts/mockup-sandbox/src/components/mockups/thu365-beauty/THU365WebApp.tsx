@@ -230,10 +230,7 @@ export function THU365WebApp() {
       await refreshDevicePermissions();
       return false;
     }
-    try {
-      const microphone=await navigator.mediaDevices.getUserMedia({video:false,audio:true});
-      microphone.getTracks().forEach(track=>track.stop());
-    } catch { /* Microphone is optional; photo mode remains available. */ }
+    // Microphone permission is intentionally deferred until the user starts a video recording with sound.
     await refreshDevicePermissions();
     return true;
   }
@@ -247,7 +244,9 @@ export function THU365WebApp() {
     setActiveModule("setup");setScreen("module");
     setSetupStage("models");
     const modelsReady=await downloadRequiredAIModels();
-    if(!modelsReady){autoSetupStartedRef.current=false;setSetupStage("error");return;}
+    if(!modelsReady){
+      showNotice("AI model chưa tải được · camera cơ bản vẫn có thể sử dụng. Bạn có thể thử tải lại trong AI Model Center.");
+    }
     setSetupStage("camera");
     const permissionGranted=await requestSetupPermissions();
     if(!permissionGranted){autoSetupStartedRef.current=false;setSetupStage("camera");showNotice("Cần cho phép camera để hoàn tất. Chạm nút thử lại nếu hộp thoại chưa xuất hiện.");return;}
@@ -463,33 +462,9 @@ export function THU365WebApp() {
       showNotice("Bắt buộc cài AnhThu vào Màn hình chính trước khi mở camera.");
       return;
     }
-    if (!("caches" in window)) {
-      setActiveModule("ai-models");
-      setScreen("module");
-      showNotice("Thiết bị không hỗ trợ lưu model AI. Cần trình duyệt tương thích.");
-      return;
-    }
-    try {
-      const cache = await caches.open(AI_MODEL_CACHE);
-      const missing:AIModelPack[] = [];
-      for (const model of AI_MODEL_PACKS.filter(item => item.required)) {
-        const response = await cache.match(model.url);
-        const blob = response ? await response.blob() : null;
-        if (!await validateAIModelBlob(model,blob)) missing.push(model);
-      }
-      if (missing.length) {
-        await refreshAIModelInventory();
-        setActiveModule("ai-models");
-        setScreen("module");
-        showNotice("Cần tải và cài đủ "+missing.map(item=>item.name).join(" + ")+" trước khi bật camera.");
-        return;
-      }
-    } catch {
-      setActiveModule("ai-models");
-      setScreen("module");
-      showNotice("Không thể kiểm tra bộ nhớ model AI. Mở lại AI Model Center.");
-      return;
-    }
+    // AI models enhance face tracking and segmentation, but must not block the basic camera.
+    // If Cache Storage is unavailable or a model is missing, the camera uses its color-filter fallback.
+    if ("caches" in window) void refreshAIModelInventory();
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
       setError("Camera cần Safari/Chrome hiện đại và kết nối HTTPS. Hãy mở AnhThu bằng Safari.");
       return;
@@ -562,8 +537,7 @@ export function THU365WebApp() {
 
   function capturePhoto() {
     if (!aiReady || !arReady) {
-      showNotice("AI Face + Skin chưa sẵn sàng. Chờ trạng thái AI và khung hình hiệu ứng sẵn sàng rồi chụp.");
-      return;
+      showNotice("AI Face/ Skin chưa sẵn sàng · ảnh sẽ dùng bộ lọc màu cơ bản.");
     }
     const video = videoRef.current;
     if (!video || !video.videoWidth || !video.videoHeight) {
