@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./artifacts/mockup-sandbox/public/thu365/app-icon.svg" alt="THU365 app logo" width="160" />
+<img src="./assets/THU365_horizontal_logo.png" alt="THU365 — AnhThu Beauty Camera" width="420" />
 
 # THU365 — AnhThu Beauty Camera
 
