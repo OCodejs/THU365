@@ -11,6 +11,10 @@ on:
           - simulator
           - app-store
         default: simulator
+  pull_request:
+    paths:
+      - "apps/thu365-mobile/**"
+      - ".github/workflows/thu365-ios-build.yml"
 
 permissions:
   contents: read
@@ -60,7 +64,7 @@ jobs:
         run: xcodebuild -list -workspace ios/THU365.xcworkspace
 
       - name: Build iOS Simulator app
-        if: inputs.distribution == 'simulator'
+        if: github.event_name == 'pull_request' || inputs.distribution == 'simulator'
         run: |
           xcodebuild -workspace ios/THU365.xcworkspace \
             -scheme THU365 \
@@ -79,7 +83,7 @@ jobs:
           retention-days: 30
 
       - name: Check App Store signing secrets
-        if: inputs.distribution == 'app-store'
+        if: github.event_name == 'workflow_dispatch' && inputs.distribution == 'app-store'
         env:
           IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
