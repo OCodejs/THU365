@@ -127,6 +127,7 @@ export function THU365WebApp() {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioStreamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const processedVideoStreamRef = useRef<MediaStream | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -302,8 +303,9 @@ export function THU365WebApp() {
       context.translate(canvas.width, 0);
       context.scale(-1, 1);
     }
-    context.filter = `${activePreset.filter} brightness(${1 + beauty / 650}) saturate(${1 + beauty / 500})`;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const processedFrame = arReady && arCanvasRef.current?.width ? arCanvasRef.current : video;
+    context.filter = processedFrame === video ? `${activePreset.filter} brightness(${1 + beauty / 650}) saturate(${1 + beauty / 500})` : "none";
+    context.drawImage(processedFrame, 0, 0, canvas.width, canvas.height);
     canvas.toBlob((blob) => {
       if (!blob) {
         showNotice("Không thể tạo ảnh. Hãy thử lại.");
@@ -329,10 +331,12 @@ export function THU365WebApp() {
       const audio = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       audioStreamRef.current = audio;
       void refreshDevicePermissions();
-      const recordingStream = new MediaStream([
-        ...streamRef.current.getVideoTracks(),
-        ...audio.getAudioTracks()
-      ]);
+      // Record the processed AR canvas whenever face tracking is ready; use the raw camera only as a startup fallback.
+      const processedCanvas = arReady ? arCanvasRef.current : null;
+      processedVideoStreamRef.current = processedCanvas?.captureStream ? processedCanvas.captureStream(30) : null;
+      const processedTracks = processedVideoStreamRef.current?.getVideoTracks() ?? [];
+      const sourceVideoTracks = processedTracks.length ? processedTracks : streamRef.current.getVideoTracks();
+      const recordingStream = new MediaStream([...sourceVideoTracks, ...audio.getAudioTracks()]);
       const candidates = ["video/mp4;codecs=h264,aac", "video/mp4", "video/webm;codecs=vp8,opus", "video/webm"];
       const mimeType = candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate));
       const targetBitrate = studioSettings.video === "4k" ? 20_000_000 : studioSettings.video === "720" ? 6_000_000 : 12_000_000;
@@ -347,6 +351,8 @@ export function THU365WebApp() {
         const blob = new Blob(chunksRef.current, { type });
         audioStreamRef.current?.getTracks().forEach((track) => track.stop());
         audioStreamRef.current = null;
+        processedVideoStreamRef.current?.getTracks().forEach((track) => track.stop());
+        processedVideoStreamRef.current = null;
         setMediaBlob(blob);
         setMediaType("video");
         setMediaName(`anhthu-${Date.now()}.${type.includes("mp4") ? "mp4" : "webm"}`);
@@ -582,7 +588,7 @@ export function THU365WebApp() {
                 <button className={`tw-shutter ${recording ? "tw-recording" : ""}`} onClick={() => mode === "image" ? capturePhoto() : recording ? stopRecording() : setMicGuide(true)} aria-label={recording ? "Dừng quay" : mode === "image" ? "Chụp ảnh" : "Bắt đầu quay"}><span /></button>
                 <button className="tw-side-button" onClick={() => setMode(mode === "image" ? "video" : "image")}><Video size={21} /><small>{mode === "image" ? "Chế độ ảnh" : "Chế độ video"}</small></button>
               </div>
-              <div className="tw-mode-label">{mode === "image" ? "CHỤP ẢNH" : recording ? `ĐANG QUAY · ${recordingSeconds}s${shortVideoMode ? " / 60s" : ""} · CHẠM ĐỂ DỪNG` : shortVideoMode ? "VIDEO NGẮN · TỐI ĐA 60 GIÂY" : "QUAY VIDEO"}</div>
+              <div className="tw-mode-label">{mode === "image" ? "CHỤP ẢNH" : recording ? `ĐANG QUAY · ${recordingSeconds}s${shortVideoMode ? " / " + (videoLimitSeconds === 600 ? "10 phút" : videoLimitSeconds + "s") : ""} · CHẠM ĐỂ DỪNG` : shortVideoMode ? "VIDEO · TỐI ĐA " + (videoLimitSeconds === 600 ? "10 PHÚT" : videoLimitSeconds + " GIÂY") : "QUAY VIDEO"}</div>
             </div>
           </div>
           {error && <div className="tw-error" role="alert">{error}</div>}
