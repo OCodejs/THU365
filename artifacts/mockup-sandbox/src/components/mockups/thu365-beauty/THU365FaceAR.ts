@@ -4,7 +4,10 @@ async function resolveCachedModel(url:string,label:string):Promise<{url:string;r
  const response=await cache.match(url);
  if(!response)throw new Error(label+" chưa được tải về thiết bị. Mở Tải AI Models và cài đặt model trước.");
  const blob=await response.blob();
- if(!blob.size)throw new Error(label+" bị lỗi hoặc tệp rỗng. Hãy xóa và tải lại model.");
+ if(blob.size<1024)throw new Error(label+" bị lỗi hoặc tệp rỗng. Hãy xóa và tải lại model.");
+ const signature=new Uint8Array(await blob.slice(0,12).arrayBuffer());
+ const valid=label==="Face Landmarker"?(signature[0]===0x50&&signature[1]===0x4b):(signature.length>=8&&signature[4]===0x54&&signature[5]===0x46&&signature[6]===0x4c&&signature[7]===0x33);
+ if(!valid)throw new Error(label+" sai định dạng hoặc tải chưa hoàn tất. Hãy xóa và tải lại model.");
  const objectUrl=URL.createObjectURL(blob);
  return {url:objectUrl,revoke:()=>URL.revokeObjectURL(objectUrl)};
 }
