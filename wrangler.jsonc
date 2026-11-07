@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "anhthu",
+  "compatibility_date": "2026-11-07",
+  "assets": {
+    "directory": "./artifacts/mockup-sandbox/dist",
+    "binding": "ASSETS"
+  },
+  "previews": {}
+}
