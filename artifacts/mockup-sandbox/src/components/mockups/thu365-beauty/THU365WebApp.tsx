@@ -155,7 +155,8 @@ export function THU365WebApp() {
       const response=await fetch(model.url,{mode:"cors",cache:"no-cache"});if(!response.ok||!response.body)throw new Error("Máy chủ trả HTTP "+response.status);
       const total=Number(response.headers.get("content-length")||0),reader=response.body.getReader(),chunks:Uint8Array[]=[];let received=0;
       while(true){const part=await reader.read();if(part.done)break;if(part.value){chunks.push(part.value);received+=part.value.byteLength;setAiModelStates(v=>({...v,[model.id]:{installed:false,bytes:received,downloading:true,progress:total?Math.min(99,Math.round(received/total*100)):0,error:""}}));}}
-      const blob=new Blob(chunks,{type:"application/octet-stream"});if(!blob.size)throw new Error("Tệp model rỗng");
+      const blobParts=chunks.map((chunk)=>{const copy=new Uint8Array(chunk.byteLength);copy.set(chunk);return copy.buffer;});
+      const blob=new Blob(blobParts,{type:"application/octet-stream"});if(!blob.size)throw new Error("Tệp model rỗng");
       const cache=await caches.open(AI_MODEL_CACHE);await cache.put(model.url,new Response(blob,{headers:{"Content-Type":"application/octet-stream","Content-Length":String(blob.size)}}));
       setAiModelStates(v=>({...v,[model.id]:{installed:true,bytes:blob.size,downloading:false,progress:100,error:""}}));showNotice(model.name+" đã tải và lưu trên thiết bị");
     }catch(cause){const message=cause instanceof Error?cause.message:"Không thể tải model";setAiModelStates(v=>({...v,[model.id]:{installed:false,bytes:0,downloading:false,progress:0,error:message}}));showNotice("Tải model thất bại · kiểm tra mạng hoặc CORS");}
