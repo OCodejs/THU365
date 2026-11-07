@@ -171,51 +171,68 @@ export function THU365WebApp() {
     let lastInsightAt = 0;
     setArReady(false);
     setTrackingStatus("Camera đã bật · đang tải AI nền");
-    // AI is optional: keep the raw camera visible during model download or offline.
+
+    // Start the processed preview immediately. Beauty color controls must work
+    // even when the optional MediaPipe model is slow, blocked, or offline.
+    const tick = () => {
+      if (!active) return;
+      const video = videoRef.current;
+      const canvas = arCanvasRef.current;
+      if (video && canvas && video.readyState >= 2 && video.currentTime !== last) {
+        last = video.currentTime;
+        try {
+          const result = tracker ? tracker.detectForVideo(video, performance.now()) : {};
+          const currentBeauty = beautyRef.current;
+          const currentFilter = filterRef.current;
+          const filter = currentFilter + " brightness(" + (1 + currentBeauty / 650) + ") saturate(" + (1 + currentBeauty / 500) + ")";
+          renderFaceAR(canvas, video, result, arSettingsRef.current, filter);
+          setArReady(true);
+
+          const face = result.faceLandmarks?.[0];
+          if (face && performance.now() - lastInsightAt > 700) {
+            lastInsightAt = performance.now();
+            const dist = (a:number,b:number) => Math.hypot((face[a]?.x ?? 0) - (face[b]?.x ?? 0), (face[a]?.y ?? 0) - (face[b]?.y ?? 0));
+            const width = dist(234,454), height = dist(10,152), eyes = dist(33,263), mouth = dist(61,291);
+            const ratio = height > 0 ? width / height : 0;
+            const shape = ratio > .82 ? "khung mặt rộng" : ratio < .68 ? "khung mặt thon" : "khung mặt cân đối";
+            setFaceInsight("AI đang theo dõi · " + shape + " · mắt " + Math.round(eyes*1000)/10 + "% · môi " + Math.round(mouth*1000)/10 + "% chiều rộng khung");
+            setTrackingStatus(tracker?.segmentationEnabled ? "Đã nhận diện khuôn mặt + vùng da" : "Đã nhận diện khuôn mặt");
+          } else if (!face && tracker && performance.now() - lastInsightAt > 700) {
+            lastInsightAt = performance.now();
+            setFaceInsight("Chưa thấy đủ landmark · hãy nhìn thẳng camera và đủ sáng");
+            setTrackingStatus("Đưa khuôn mặt vào khung hình");
+          } else if (!tracker) {
+            setTrackingStatus("Beauty màu đang hoạt động · AI đang tải nền");
+          }
+        } catch (cause) {
+          console.warn("THU365 live beauty frame failed:", cause);
+          setTrackingStatus("Đang khôi phục khung hình · camera vẫn hoạt động");
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    tick();
+
     void createTHU365FaceTracker().then((loaded) => {
       if (!active) { loaded.close(); return; }
       tracker = loaded;
       trackerRef.current = loaded;
       setTrackingStatus(loaded.segmentationEnabled ? "AI Face + Skin sẵn sàng" : "AI Face sẵn sàng · Skin AI dự phòng");
-      const tick = () => {
-        if (!active) return;
-        const video = videoRef.current;
-        const canvas = arCanvasRef.current;
-        if (video && canvas && video.readyState >= 2 && video.currentTime !== last) {
-          last = video.currentTime;
-          try {
-            const result = tracker.detectForVideo(video, performance.now());
-            const currentBeauty = beautyRef.current;
-            const currentFilter = filterRef.current;
-            const filter = currentFilter + " brightness(" + (1 + currentBeauty / 650) + ") saturate(" + (1 + currentBeauty / 500) + ")";
-            renderFaceAR(canvas, video, result, arSettingsRef.current, filter);
-            setArReady(true);
-            const face = result.faceLandmarks?.[0];
-            if(face && performance.now()-lastInsightAt>700){
-              lastInsightAt=performance.now();
-              const dist=(a:number,b:number)=>Math.hypot((face[a]?.x??0)-(face[b]?.x??0),(face[a]?.y??0)-(face[b]?.y??0));
-              const width=dist(234,454),height=dist(10,152),eyes=dist(33,263),mouth=dist(61,291);
-              const ratio=height>0?width/height:0;
-              const shape=ratio>.82?"khung mặt rộng":ratio<.68?"khung mặt thon":"khung mặt cân đối";
-              setFaceInsight("AI đang theo dõi · "+shape+" · mắt "+Math.round(eyes*1000)/10+"% · môi "+Math.round(mouth*1000)/10+"% chiều rộng khung");
-            } else if(!face && performance.now()-lastInsightAt>700) {
-              lastInsightAt=performance.now();
-              setFaceInsight("Chưa thấy đủ landmark · hãy nhìn thẳng camera và đủ sáng");
-            }
-            setTrackingStatus(face ? (loaded.segmentationEnabled ? "Đã nhận diện khuôn mặt + vùng da" : "Đã nhận diện khuôn mặt") : "Đưa khuôn mặt vào khung hình");
-          } catch { setTrackingStatus("AI đang khởi tạo · camera vẫn hoạt động"); }
-        }
-        raf = requestAnimationFrame(tick);
-      };
-      tick();
     }).catch((cause) => {
       if (!active) return;
-      setArReady(false);
+      tracker = null;
       trackerRef.current = null;
-      console.warn("AnhThu AI model unavailable; continuing with camera-only preview:", cause);
-      setTrackingStatus("Camera thường · AI chưa tải được");
+      console.warn("AnhThu AI model unavailable; live color/filter controls remain active:", cause);
+      setTrackingStatus("Beauty màu đang hoạt động · AI Face chưa tải được");
     });
-    return () => { active = false; cancelAnimationFrame(raf); tracker?.close?.(); trackerRef.current = null; setArReady(false); };
+
+    return () => {
+      active = false;
+      cancelAnimationFrame(raf);
+      tracker?.close?.();
+      trackerRef.current = null;
+      setArReady(false);
+    };
   }, [screen, aiRetry]);
 
   function applyReferenceLook(reference:BeautyReference) {
