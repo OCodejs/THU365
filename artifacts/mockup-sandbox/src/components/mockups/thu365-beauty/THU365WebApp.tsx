@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createTHU365FaceTracker, renderFaceAR, type FaceARSettings } from "./THU365FaceAR";
 import {
-  ArrowLeft, Aperture, Camera, Check, ChevronRight, Download, FlipHorizontal2, Settings, UserRound, Menu, ScanFace,
+  ArrowLeft, Aperture, Camera, Check, ChevronRight, Download, FlipHorizontal2, Settings, UserRound, Menu, ScanFace, BookOpen, BrainCircuit, Palette, SlidersHorizontal, Bookmark,
   Image as ImageIcon, LockKeyhole, Mic, Play, RotateCcw, ShieldCheck, Sparkles,
   Video, X, Zap, Clapperboard
 } from "lucide-react";
@@ -50,6 +50,7 @@ export function THU365WebApp() {
   const [homeMenuOpen, setHomeMenuOpen] = useState(false);
   const [activeHomeReference, setActiveHomeReference] = useState(BEAUTY_REFERENCES[0].id);
   const [activeModule, setActiveModule] = useState("album");
+  const [activeDocsTopic, setActiveDocsTopic] = useState("overview");
   const [facing, setFacing] = useState<CameraFacing>("user");
   const [mode, setMode] = useState<MediaKind>("image");
   const [beauty, setBeauty] = useState(35);
@@ -572,6 +573,7 @@ export function THU365WebApp() {
                 <button onClick={() => {setHomeMenuOpen(false);setActiveModule("beauty");setScreen("module");}}><Sparkles/><b>AI làm đẹp</b></button>
                 <button onClick={() => {setHomeMenuOpen(false);setActiveModule("effects");setScreen("module");}}><ScanFace/><b>Hiệu ứng</b></button>
                 <button onClick={() => {setHomeMenuOpen(false);setActiveModule("short-video");setShortVideoMode(true);setMode("video");setError("");setScreen("permission");}}><Clapperboard/><b>Video ngắn</b></button>
+                <button onClick={() => {setHomeMenuOpen(false);setActiveModule("docs");setScreen("module");}}><BookOpen/><b>Docs Beauty Skills</b></button>
                 <button onClick={() => {setHomeMenuOpen(false);setActiveModule("settings");setScreen("module");}}><Settings/><b>Cài đặt</b></button>
                 <button onClick={() => {setHomeMenuOpen(false);setActiveModule("profile");setScreen("module");}}><UserRound/><b>Hồ sơ</b></button>
               </div>
@@ -637,9 +639,68 @@ export function THU365WebApp() {
         <section className="tw-module-screen">
           <header className="tw-preview-header">
             <button className="tw-back" onClick={() => setScreen("home")} aria-label="Quay lại"><ArrowLeft size={19}/></button>
-            <div><b>{activeModule === "settings" ? "Cài đặt ứng dụng" : activeModule === "profile" ? "Hồ sơ của tôi" : activeModule === "album" ? "Album của tôi" : activeModule === "editor" ? "Chỉnh sửa ảnh" : activeModule === "sharp" ? "Làm nét ảnh AI" : activeModule === "beauty" ? "AI làm đẹp" : activeModule === "short-video" ? "Video ngắn" : "Hiệu ứng quốc tế"}</b><small>ANHTHU · KHÔNG GIAN RIÊNG TƯ</small></div>
+            <div><b>{activeModule === "docs" ? "Docs · Beauty Skills" : activeModule === "settings" ? "Cài đặt ứng dụng" : activeModule === "profile" ? "Hồ sơ của tôi" : activeModule === "album" ? "Album của tôi" : activeModule === "editor" ? "Chỉnh sửa ảnh" : activeModule === "sharp" ? "Làm nét ảnh AI" : activeModule === "beauty" ? "AI làm đẹp" : activeModule === "short-video" ? "Video ngắn" : "Hiệu ứng quốc tế"}</b><small>ANHTHU · KHÔNG GIAN RIÊNG TƯ</small></div>
           </header>
-          {activeModule === "settings" ? (
+          {activeModule === "docs" ? (
+            <div className="tw-docs-hub">
+              <div className="tw-docs-hero">
+                <div className="tw-docs-hero-icon"><BookOpen size={25}/></div>
+                <span>ANHTHU BEAUTY KNOWLEDGE BASE</span>
+                <h2>Beauty Skills Docs</h2>
+                <p>Hướng dẫn sử dụng, giải thích kỹ thuật và lộ trình phát triển từng kỹ năng làm đẹp. Chọn một chủ đề để đọc hướng dẫn chi tiết.</p>
+                <div className="tw-docs-meta"><span><BookOpen size={12}/> 12 hướng dẫn</span><span><BrainCircuit size={12}/> AI & AR</span><span><ShieldCheck size={12}/> Privacy-first</span></div>
+              </div>
+              <div className="tw-docs-notice"><ShieldCheck size={17}/><p><b>Minh bạch tính năng:</b> tài liệu phân biệt công cụ đang có, tính năng cần model AI và hạng mục đang lên kế hoạch. Không phải hướng dẫn nào cũng đồng nghĩa model đã được cài đặt.</p></div>
+              <div className="tw-docs-topic-list">
+                {[
+                  {id:"overview",icon:<Sparkles/>,title:"Bắt đầu với AnhThu Beauty",tag:"CƠ BẢN",desc:"Luồng camera, chọn ảnh mẫu, áp dụng preset và lưu kết quả."},
+                  {id:"face",icon:<ScanFace/>,title:"AI Face Tracking & Landmark",tag:"AI / AR",desc:"Theo dõi khuôn mặt, điểm mắt-mũi-môi, độ ổn định và giới hạn."},
+                  {id:"skin",icon:<BrainCircuit/>,title:"Skin Analysis & Glass Skin",tag:"AI MODEL",desc:"Phân vùng da, làm mịn có bảo toàn texture và kiểm soát cường độ."},
+                  {id:"makeup",icon:<Palette/>,title:"Makeup Studio",tag:"MAKEUP",desc:"Son, má hồng, eyeliner, lông mày và phối màu theo tông da."},
+                  {id:"face-shape",icon:<ScanFace/>,title:"Face Sculpt & Eye Styling",tag:"CHỈNH SỬA",desc:"Tinh chỉnh gương mặt nhẹ, cân đối mắt và giữ tỷ lệ tự nhiên."},
+                  {id:"hair",icon:<WandSparkles/>,title:"Hair Color & Hairstyle",tag:"THỬ KIỂU",desc:"Thử màu tóc, mái, kiểu tóc và phụ kiện bằng ảnh tham chiếu."},
+                  {id:"light",icon:<Zap/>,title:"Portrait Lighting & Color Lab",tag:"MÀU SẮC",desc:"Ánh sáng studio, tông phim, cân bằng trắng và màu nền."},
+                  {id:"background",icon:<ImageIcon/>,title:"Background & Portrait Cutout",tag:"ẢNH",desc:"Tách chủ thể, xóa phông, thay nền và đổ bóng."},
+                  {id:"ar",icon:<Aperture/>,title:"AR Effects, Stickers & Lenses",tag:"AR",desc:"Sticker bám mặt, kính, phụ kiện và hiệu ứng theo chuyển động."},
+                  {id:"video",icon:<Video/>,title:"Realtime Video & Creator",tag:"VIDEO",desc:"Quay dọc, chống rung, âm thanh, filter và xuất video."},
+                  {id:"reference",icon:<ImageIcon/>,title:"Reference Matching & Before/After",tag:"WORKFLOW",desc:"Dùng ảnh mẫu làm định hướng, so sánh trước-sau và tinh chỉnh."},
+                  {id:"presets",icon:<Bookmark/>,title:"Preset Library & Personal Looks",tag:"CÁ NHÂN",desc:"Lưu cấu hình, đặt tên preset, áp dụng lại và quản lý bộ sưu tập."}
+                ].map((item) => <button key={item.id} className={activeDocsTopic===item.id?"is-active":""} onClick={() => setActiveDocsTopic(item.id)}>
+                  <span className="tw-docs-topic-icon">{item.icon}</span><span className="tw-docs-topic-copy"><b>{item.title}</b><small>{item.desc}</small></span><span className="tw-docs-topic-tag">{item.tag}</span><ChevronRight size={15}/>
+                </button>)}
+              </div>
+              <article className="tw-docs-article">
+                {activeDocsTopic==="overview" ? <>
+                  <span className="tw-docs-kicker">GETTING STARTED</span><h3>Bắt đầu trong 4 bước</h3>
+                  <ol><li>Mở Camera Beauty và cấp quyền camera khi iPhone/Safari hỏi.</li><li>Chọn phong cách mẫu hoặc preset có sẵn; mẫu chỉ là gợi ý màu và makeup.</li><li>Chuyển sang Thủ công để tinh chỉnh từng thông số, hoặc Auto để dùng cấu hình gợi ý.</li><li>Chụp/quay, xem trước, sau đó lưu hoặc chia sẻ kết quả.</li></ol>
+                  <div className="tw-docs-tip"><b>Mẹo:</b> dùng ánh sáng trước mặt, tránh đèn ngược sáng và giữ khuôn mặt trong khung để tracking ổn định hơn.</div>
+                </> : activeDocsTopic==="face" ? <>
+                  <span className="tw-docs-kicker">FACE LANDMARK</span><h3>AI Face Tracking & Landmark</h3><p>Pipeline dự kiến: camera frame → face detection → landmark smoothing → face mesh/region mapping → render AR. Điểm landmark là tọa độ hình học, không phải kết luận về danh tính hay đặc điểm nhạy cảm.</p><ul><li>Giữ mặt trong khung, tránh che mắt/mũi/miệng.</li><li>Ánh sáng đủ và chuyển động vừa phải giúp giảm rung hiệu ứng.</li><li>Hiển thị trạng thái rõ: đang tải model, đang tracking, mất khuôn mặt hoặc lỗi model.</li></ul>
+                </> : activeDocsTopic==="skin" ? <>
+                  <span className="tw-docs-kicker">SKIN SEGMENTATION</span><h3>Skin Analysis & Glass Skin</h3><p>Phân vùng da cần model segmentation chuyên dụng. Bộ lọc CSS chỉ thay đổi màu/độ sáng, không phải phân tích da hoặc làm mịn theo vùng bằng AI.</p><ul><li>Ưu tiên giữ lỗ chân lông và chi tiết tự nhiên.</li><li>Điều chỉnh riêng vùng trán, má, cằm; tránh làm mịn mắt, tóc và nền.</li><li>Có thanh cường độ, nút tắt hiệu ứng và so sánh trước/sau.</li></ul>
+                </> : activeDocsTopic==="makeup" ? <>
+                  <span className="tw-docs-kicker">VIRTUAL MAKEUP</span><h3>Makeup Studio</h3><p>Chia makeup thành lớp độc lập để có thể chỉnh màu và độ đậm riêng: môi, má, eyeliner, chân mày và highlight.</p><ul><li>Chọn bảng màu theo tông ấm, lạnh hoặc trung tính.</li><li>Điều chỉnh opacity và feather để viền makeup mềm.</li><li>Lưu tổ hợp makeup thành preset cá nhân.</li></ul>
+                </> : activeDocsTopic==="face-shape" ? <>
+                  <span className="tw-docs-kicker">FACIAL CONTROLS</span><h3>Face Sculpt & Eye Styling</h3><p>Chỉ nên dùng biến đổi cường độ thấp và có giới hạn, giữ tỷ lệ tự nhiên, tránh méo nền hoặc viền tóc.</p><ul><li>Điều chỉnh từng vùng và có nút reset từng thông số.</li><li>Kiểm tra ở nhiều góc mặt trước khi xuất ảnh.</li><li>Không áp dụng biến đổi khi tracking không ổn định.</li></ul>
+                </> : activeDocsTopic==="hair" ? <>
+                  <span className="tw-docs-kicker">HAIR LAB</span><h3>Hair Color & Hairstyle</h3><p>Đổi màu tóc chính xác cần phân vùng tóc; thử kiểu tóc cần ảnh tham chiếu hoặc mô hình tạo ảnh riêng.</p><ul><li>Chọn màu, độ bão hòa, độ sáng và độ trong suốt.</li><li>Giữ vùng da và nền không bị nhuộm màu.</li><li>Ảnh mẫu là tham chiếu phong cách, không bảo đảm tái tạo kiểu tóc chính xác.</li></ul>
+                </> : activeDocsTopic==="light" ? <>
+                  <span className="tw-docs-kicker">COLOR & LIGHT</span><h3>Portrait Lighting & Color Lab</h3><p>Bộ công cụ màu gồm exposure, contrast, highlights, shadows, temperature, tint, saturation, vibrance và tone curve.</p><ul><li>Dùng preset làm điểm bắt đầu, sau đó tinh chỉnh thủ công.</li><li>Tránh clipping vùng sáng trên da và giữ màu trắng trung tính.</li><li>Cho phép lưu thông số màu thành look riêng.</li></ul>
+                </> : activeDocsTopic==="background" ? <>
+                  <span className="tw-docs-kicker">BACKGROUND STUDIO</span><h3>Background & Portrait Cutout</h3><p>Tách nền cần model segmentation chủ thể. Sau khi có mask, có thể thay nền, làm mờ hậu cảnh và tạo bóng mềm.</p><ul><li>Kiểm tra viền tóc và vai ở mức zoom cao.</li><li>Hỗ trợ ảnh nền riêng do người dùng chọn.</li><li>Không tải ảnh riêng tư lên dịch vụ ngoài khi chưa có sự đồng ý.</li></ul>
+                </> : activeDocsTopic==="ar" ? <>
+                  <span className="tw-docs-kicker">AUGMENTED REALITY</span><h3>AR Effects, Stickers & Lenses</h3><p>Sticker gắn vào landmark hoặc anchor 3D; hiệu ứng cần cập nhật theo từng frame và xử lý mất tracking an toàn.</p><ul><li>Chọn sticker, scale, rotation và vị trí.</li><li>Hỗ trợ nhiều khuôn mặt nếu thiết bị đủ hiệu năng.</li><li>Tự ẩn sticker khi mất tracking, không để hiệu ứng trôi trên màn hình.</li></ul>
+                </> : activeDocsTopic==="video" ? <>
+                  <span className="tw-docs-kicker">VIDEO CREATOR</span><h3>Realtime Video & Creator</h3><p>Luồng video gồm camera preview, beauty render, ghi hình, âm thanh, xem trước và xuất file. Hiệu năng phụ thuộc thiết bị và trình duyệt.</p><ul><li>Ưu tiên 1080p/30fps làm cấu hình mặc định ổn định.</li><li>Kiểm tra microphone riêng và xin quyền đúng lúc.</li><li>Thông báo rõ khi trình duyệt không hỗ trợ codec hoặc độ phân giải.</li></ul>
+                </> : activeDocsTopic==="reference" ? <>
+                  <span className="tw-docs-kicker">REFERENCE MATCH</span><h3>Reference Matching & Before/After</h3><p>Ảnh mẫu nên dùng để tham khảo ánh sáng, màu sắc và makeup. Không nên sao chép danh tính hoặc tự động biến đổi khuôn mặt để giống một người cụ thể.</p><ul><li>Chọn ảnh tham chiếu có quyền sử dụng.</li><li>So sánh cùng khung hình và cùng điều kiện ánh sáng.</li><li>Dùng thanh kéo trước/sau và có thể hoàn tác.</li></ul>
+                </> : <>
+                  <span className="tw-docs-kicker">PRESET WORKFLOW</span><h3>Preset Library & Personal Looks</h3><p>Một preset nên lưu thông số hiệu ứng, tên, mô tả và thời điểm cập nhật. Lưu cục bộ trước; đồng bộ đám mây là tính năng riêng cần đăng nhập và sự đồng ý.</p><ul><li>Lưu cấu hình hiện tại với tên do bạn đặt.</li><li>Áp dụng lại preset, nhân bản hoặc xóa.</li><li>Không ghi đè ảnh gốc; luôn giữ bản xuất riêng.</li></ul>
+                </>}
+              </article>
+              <div className="tw-docs-footer"><BookOpen size={15}/><span>Tài liệu hướng dẫn phiên bản thử nghiệm. Trạng thái AI phụ thuộc model thực tế được tích hợp trong bản đang chạy.</span></div>
+            </div>
+          ) : activeModule === "settings" ? (
             <div className="tw-settings-panel">
               <div className="tw-settings-intro"><span className="tw-module-icon"><Settings size={25}/></span><h2>Chất lượng hình ảnh</h2><p>Ưu tiên độ phân giải cao và chuyển động mượt. Thiết bị có thể tự hạ cấu hình khi không hỗ trợ.</p></div>
               <label>Độ phân giải ảnh<select value={studioSettings.photo} onChange={(e) => updateStudioSettings({photo:e.target.value})}><option value="1080">Full HD · 1080p</option><option value="4k">Tối đa thiết bị · 4K nếu hỗ trợ</option></select></label>
@@ -966,6 +1027,34 @@ export function THU365WebApp() {
         .tw-skills-grid>button>span svg{width:18px;height:18px}
         .tw-skills-grid>button>b{font-size:10px;line-height:1.3}
         .tw-skills-grid>button>small{font-size:8px;color:#b7a9a4;line-height:1.4}
+        .tw-docs-hub{display:grid;gap:14px;padding-bottom:18px}
+        .tw-docs-hero{position:relative;overflow:hidden;padding:22px 18px;border:1px solid #e5b6aa42;border-radius:20px;background:radial-gradient(circle at 90% 10%,#e5b6aa26,transparent 38%),linear-gradient(145deg,#24191a,#100e10)}
+        .tw-docs-hero-icon{width:48px;height:48px;display:grid;place-items:center;margin-bottom:14px;border-radius:15px;background:#e5b6aa24;color:#f0c7bb}
+        .tw-docs-hero>span{font-size:8px;letter-spacing:.17em;color:#e5b6aa;font-weight:800}
+        .tw-docs-hero h2{margin:7px 0;font:500 27px Georgia,serif;color:#fff0e9}
+        .tw-docs-hero p{max-width:540px;margin:0;color:#c7b8b2;font-size:11px;line-height:1.65}
+        .tw-docs-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:15px}
+        .tw-docs-meta span{display:flex;align-items:center;gap:5px;padding:6px 8px;border:1px solid #ffffff1b;border-radius:99px;color:#eadbd5;font-size:8px}
+        .tw-docs-notice{display:flex;align-items:flex-start;gap:9px;padding:12px;border:1px solid #72f4cb32;border-radius:13px;background:#72f4cb0a;color:#b9e9da}
+        .tw-docs-notice svg{flex:0 0 auto;margin-top:2px}.tw-docs-notice p{margin:0;font-size:9px;line-height:1.55}
+        .tw-docs-topic-list{display:grid;gap:7px}
+        .tw-docs-topic-list>button{display:grid;grid-template-columns:35px minmax(0,1fr) auto 14px;align-items:center;gap:9px;min-height:67px;padding:10px;border:1px solid #ffffff18;border-radius:13px;background:#ffffff08;color:#f6e9e4;text-align:left}
+        .tw-docs-topic-list>button.is-active{border-color:#e5b6aa;background:#e5b6aa14}
+        .tw-docs-topic-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:#e5b6aa1c;color:#e5b6aa}
+        .tw-docs-topic-icon svg{width:17px;height:17px}
+        .tw-docs-topic-copy{display:grid;gap:4px;min-width:0}.tw-docs-topic-copy b{font-size:10px;line-height:1.3}.tw-docs-topic-copy small{font-size:8px;color:#b9aaa4;line-height:1.4}
+        .tw-docs-topic-tag{font-size:7px;letter-spacing:.06em;color:#e5b6aa;white-space:nowrap}
+        .tw-docs-topic-list>button>svg:last-child{color:#9c8982}
+        .tw-docs-article{padding:16px;border:1px solid #e5b6aa38;border-radius:15px;background:linear-gradient(145deg,#21191a,#111012)}
+        .tw-docs-kicker{font-size:8px;letter-spacing:.16em;color:#e5b6aa;font-weight:800}
+        .tw-docs-article h3{margin:7px 0 10px;font:500 20px Georgia,serif;color:#fff0e9}
+        .tw-docs-article p,.tw-docs-article li{font-size:10px;line-height:1.7;color:#c8bbb5}
+        .tw-docs-article p{margin:0 0 9px}.tw-docs-article ul,.tw-docs-article ol{padding-left:18px;margin:8px 0}
+        .tw-docs-article li{padding:3px 0}
+        .tw-docs-tip{margin-top:12px;padding:11px;border-left:2px solid #e5b6aa;border-radius:0 9px 9px 0;background:#e5b6aa12;color:#eadbd5;font-size:9px;line-height:1.6}
+        .tw-docs-footer{display:flex;align-items:flex-start;gap:8px;color:#a99b96;font-size:8px;line-height:1.5}
+        .tw-docs-footer svg{flex:0 0 auto;color:#e5b6aa}
+        @media(max-width:380px){.tw-docs-topic-list>button{grid-template-columns:32px minmax(0,1fr) 13px}.tw-docs-topic-tag{display:none}.tw-docs-hero h2{font-size:24px}}
       `}</style>
     </main>
   );
