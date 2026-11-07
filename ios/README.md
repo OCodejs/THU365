@@ -20,7 +20,7 @@ The native app currently provides camera capture, permission handling and a basi
 
 ### Build an iOS Simulator app
 
-The GitHub Actions workflow **THU365 iOS Build** can build a simulator app without Apple distribution signing:
+The GitHub Actions workflow **THU365 iOS Build** supports three outputs: an unsigned Simulator app, a TestFlight/App Store IPA, and an Ad Hoc IPA for registered test devices.
 
 1. Open the repository Actions tab.
 2. Run THU365 iOS Build.
@@ -61,10 +61,24 @@ Then:
 
 1. Open Actions → THU365 iOS Build.
 2. Run the workflow with distribution = app-store.
-3. Download the THU365-iOS-App-Store-IPA artifact.
+3. Download the THU365-iOS-app-store-IPA artifact.
 4. Upload the IPA to App Store Connect and enable testers in TestFlight.
 
 TestFlight users install through Apple's TestFlight app. They do not manually trust an enterprise developer profile.
+
+### Ad Hoc IPA for registered iPhones
+
+1. Register each test iPhone UDID in the Apple Developer account.
+2. Create an Ad Hoc provisioning profile for app.thu365.beautycamera that includes those device UDIDs.
+3. Set IOS_PROVISIONING_PROFILE_BASE64 to that Ad Hoc profile and keep the matching Apple Distribution certificate and team ID secrets.
+4. Run THU365 iOS Build with distribution = ad-hoc.
+5. Download the THU365-iOS-ad-hoc-IPA artifact and install it using an approved Ad Hoc distribution method, such as Apple Configurator or an authenticated internal distribution page.
+
+The profile must include the target device UDID. Ad Hoc is not a public App Store release and does not automatically create the Enterprise Developer trust prompt.
+
+### Enterprise trust prompt
+
+The Settings → General → VPN & Device Management trust flow applies to eligible organization-owned Enterprise distribution. It is restricted to an eligible Apple Developer Enterprise Program organization and its internal workforce. Do not use enterprise certificates from third parties or attempt to bypass Apple's trust controls.
 
 ### Optional internal IPA distribution
 
