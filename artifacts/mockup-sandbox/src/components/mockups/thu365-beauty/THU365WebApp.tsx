@@ -612,6 +612,22 @@ export function THU365WebApp() {
               <article><Clapperboard/><b>Video Effects</b><small>Hiệu ứng realtime cho video dọc.</small></article>
             </div>
           </section>
+          <section className="tw-home-skills">
+            <div className="tw-home-section-title"><div><span>BEAUTY SKILLS</span><h2>Bộ kỹ năng làm đẹp</h2></div><small>10 CÔNG CỤ</small></div>
+            <p className="tw-skills-intro">Chọn đúng công cụ để mở camera làm đẹp realtime hoặc không gian chỉnh sửa ảnh.</p>
+            <div className="tw-skills-grid">
+              <button onClick={() => {setBeautyCategory("face");setActiveBeautyTool("smooth");setMode("image");setShortVideoMode(false);setError("");setScreen("permission");}}><span><Sparkles/></span><b>Làm mịn da</b><small>Da mềm, giữ texture</small></button>
+              <button onClick={() => {setBeautyCategory("makeup");setActiveBeautyTool("lipstick");setMode("image");setShortVideoMode(false);setError("");setScreen("permission");}}><span><Aperture/></span><b>Trang điểm AI</b><small>Son, má hồng, eyeliner</small></button>
+              <button onClick={() => {setBeautyCategory("face");setActiveBeautyTool("faceSlim");setMode("image");setShortVideoMode(false);setError("");setScreen("permission");}}><span><ScanFace/></span><b>Tạo khối gương mặt</b><small>Đường nét tự nhiên</small></button>
+              <button onClick={() => {setBeautyCategory("makeup");setActiveBeautyTool("hairTint");setMode("image");setShortVideoMode(false);setError("");setScreen("permission");}}><span><Sparkles/></span><b>Màu tóc</b><small>Thử tông màu tóc</small></button>
+              <button onClick={() => {setBeautyCategory("face");setActiveBeautyTool("light");setMode("image");setShortVideoMode(false);setError("");setScreen("permission");}}><span><Zap/></span><b>Ánh sáng chân dung</b><small>Soft, studio, glow</small></button>
+              <button onClick={() => {setActiveModule("editor");setScreen("module");}}><span><Aperture/></span><b>Màu phim & nền</b><small>Color grade, phông nền</small></button>
+              <button onClick={() => {setActiveModule("sharp");setScreen("module");}}><span><ScanFace/></span><b>Phục hồi ảnh</b><small>Tăng nét và chi tiết</small></button>
+              <button onClick={() => {setActiveModule("effects");setScreen("module");}}><span><Sparkles/></span><b>AR & sticker</b><small>Phụ kiện và hiệu ứng</small></button>
+              <button onClick={() => {setActiveModule("short-video");setShortVideoMode(true);setMode("video");setScreen("module");}}><span><Video/></span><b>Video beauty</b><small>Quay clip dọc realtime</small></button>
+              <button onClick={() => {setActiveModule("album");setScreen("module");}}><span><ImageIcon/></span><b>Thư viện riêng</b><small>Ảnh và video của bạn</small></button>
+            </div>
+          </section>
           <button className="tw-action-card" onClick={() => fileRef.current?.click()}><span className="tw-action-icon"><ImageIcon size={22}/></span><span className="tw-action-copy"><b>Chọn nhanh ảnh hoặc video</b><small>Mở bộ chọn ảnh an toàn của iOS / Android</small></span><ChevronRight size={18}/></button>
           <div className="tw-privacy-note"><ShieldCheck size={15}/><span><b>Riêng tư mặc định.</b> Ảnh/video chỉ ở trong trình duyệt, không tải lên máy chủ.</span></div>
           <footer className="tw-footer">ANHTHU BEAUTY · BẢN DÙNG THỬ PWA</footer>
@@ -942,7 +958,15 @@ export function THU365WebApp() {
         @media(max-width:380px){.tw-home-hero .tw-hero-copy{max-width:72%}.tw-home-hero .tw-hero-mark{right:-20px!important}.tw-ai-assistant-card .tw-robot-wrap{width:94px;flex-basis:94px}.tw-home-reference-grid>button{height:165px}}
         @media(prefers-reduced-motion:reduce){.tw-nav-drawer,.tw-robot-aura,.tw-robot-scan-line{animation:none!important}}
         .tw-live-scan-badge{padding:5px 8px;border:1px solid #72f4cb40;border-radius:99px;color:#a5f7dd;font-size:8px;letter-spacing:.1em;font-weight:800}
-              `}</style>
+                .tw-skills-intro{margin:-3px 0 12px;color:#b7a9a4;font-size:10px;line-height:1.55}
+        .tw-skills-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+        .tw-skills-grid>button{min-height:106px;display:grid;grid-template-columns:34px 1fr;grid-template-rows:auto auto;align-content:center;align-items:center;column-gap:9px;row-gap:5px;padding:12px;border:1px solid #ffffff1c;border-radius:14px;background:linear-gradient(145deg,#ffffff0d,#e5b6aa08);color:#f7e9e3;text-align:left;transition:transform .18s,border-color .18s}
+        .tw-skills-grid>button:active{transform:scale(.97);border-color:#e5b6aa}
+        .tw-skills-grid>button>span{grid-row:1/3;width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:#e5b6aa1c;color:#e5b6aa}
+        .tw-skills-grid>button>span svg{width:18px;height:18px}
+        .tw-skills-grid>button>b{font-size:10px;line-height:1.3}
+        .tw-skills-grid>button>small{font-size:8px;color:#b7a9a4;line-height:1.4}
+      `}</style>
     </main>
   );
 }
