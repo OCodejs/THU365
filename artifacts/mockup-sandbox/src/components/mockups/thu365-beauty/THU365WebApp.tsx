@@ -65,7 +65,7 @@ export function THU365WebApp() {
     setCheckingAI(true);
     const runtime = typeof WebAssembly !== "undefined" ? "WebAssembly khả dụng" : "Thiếu WebAssembly";
     const secure = window.isSecureContext ? "HTTPS / secure context hợp lệ" : "Không an toàn · camera và AI có thể bị chặn";
-    const camera = navigator.mediaDevices?.getUserMedia ? "Trình duyệt hỗ trợ getUserMedia" : "Trình duyệt không hỗ trợ camera";
+    const camera = typeof navigator.mediaDevices?.getUserMedia === "function" ? "Trình duyệt hỗ trợ getUserMedia" : "Trình duyệt không hỗ trợ camera";
     const network = navigator.onLine ? "Thiết bị đang báo có mạng" : "Thiết bị đang offline";
     const probe = async (url: string) => {
       const controller = new AbortController();
