@@ -70,13 +70,13 @@ Không cài chứng chỉ chia sẻ, không rõ nguồn gốc hoặc đã bị t
 
 1. Mở tab **Actions** của repository.
 2. Chạy workflow **THU365 iOS Build**.
-3. Chọn **simulator** để tạo ứng dụng mô phỏng hoặc **app-store** để tạo IPA đã ký.
-4. Với **app-store**, quản trị viên repository phải cấu hình các GitHub Actions secrets sau:
+3. Chọn **simulator** để tạo ứng dụng mô phỏng, **app-store** để tạo IPA cho TestFlight hoặc **ad-hoc** để tạo IPA cho các iPhone đã đăng ký UDID.
+4. Với **app-store** hoặc **ad-hoc**, quản trị viên repository phải cấu hình các GitHub Actions secrets sau. Provisioning profile phải khớp với kiểu phân phối đã chọn:
    - IOS_CERTIFICATE_BASE64
    - IOS_CERTIFICATE_PASSWORD
    - IOS_PROVISIONING_PROFILE_BASE64
    - APPLE_TEAM_ID
-5. Tải artifact sau khi workflow thành công. IPA App Store cần được tải lên App Store Connect để phát hành qua TestFlight.
+5. Tải artifact sau khi workflow thành công. IPA App Store cần được tải lên App Store Connect để phát hành qua TestFlight. IPA Ad Hoc chỉ cài được trên các thiết bị có UDID nằm trong provisioning profile.
 
 **Không đưa certificate, private key, provisioning profile hoặc mật khẩu vào source code.** Nếu chưa có signing secrets, workflow chỉ có thể tạo bản Simulator; không có IPA cài trực tiếp được lên iPhone.
 
