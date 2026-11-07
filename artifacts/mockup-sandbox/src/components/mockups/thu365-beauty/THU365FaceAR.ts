@@ -1,3 +1,7 @@
+async function resolveCachedModel(url:string):Promise<{url:string;revoke?:()=>void}>{
+ try{if("caches" in window){const cache=await caches.open("anhthu-ai-models-v1");const response=await cache.match(url);if(response){const objectUrl=URL.createObjectURL(await response.blob());return {url:objectUrl,revoke:()=>URL.revokeObjectURL(objectUrl)};}}}catch(error){console.warn("THU365 cached model unavailable; using network URL",error);}
+ return {url};
+}
 export type FaceARSettings = { smooth:number; lipstick:string; blush:string; lipstickStrength?:number; blushStrength?:number; faceSlim?:number; eyeEnlarge?:number; eyelinerStrength?:number; eyelashStrength?:number; highlightStrength?:number; eyeliner:boolean; hairTint:string; sticker:"none"|"hearts"|"sunglasses"|"sparkles"|"bunny"|"cat"|"crown"|"butterfly"; light:"none"|"soft"|"golden"|"studio"; highlight?:boolean; eyelash?:boolean };
 type Landmark={x:number;y:number;z:number};
 type Mask={width:number;height:number;data:Uint8Array};
@@ -9,13 +13,15 @@ export async function createTHU365FaceTracker(){
  // @ts-expect-error pinned MediaPipe ESM CDN
  const vision=await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm");
  const files=await vision.FilesetResolver.forVisionTasks(WASM);
- const faceOptions={baseOptions:{modelAssetPath:FACE},runningMode:"VIDEO",numFaces:1,minFaceDetectionConfidence:.55,minFacePresenceConfidence:.55,minTrackingConfidence:.55};
+ const faceAsset=await resolveCachedModel(FACE);
+ const skinAsset=await resolveCachedModel(SKIN);
+ const faceOptions={baseOptions:{modelAssetPath:faceAsset.url},runningMode:"VIDEO",numFaces:1,minFaceDetectionConfidence:.55,minFacePresenceConfidence:.55,minTrackingConfidence:.55};
  let face:any;
  try{face=await vision.FaceLandmarker.createFromOptions(files,{...faceOptions,baseOptions:{...faceOptions.baseOptions,delegate:"GPU"}});}
  catch{face=await vision.FaceLandmarker.createFromOptions(files,{...faceOptions,baseOptions:{...faceOptions.baseOptions,delegate:"CPU"}});}
  let segmenter:any=null;
  let disposed=false;
- const segmentationOptions={baseOptions:{modelAssetPath:SKIN},runningMode:"VIDEO",outputCategoryMask:true,outputConfidenceMasks:false};
+ const segmentationOptions={baseOptions:{modelAssetPath:skinAsset.url},runningMode:"VIDEO",outputCategoryMask:true,outputConfidenceMasks:false};
  // Skin segmentation is optional and must never delay the camera/face tracker.
  void (async()=>{
   let loaded:any=null;
@@ -30,7 +36,7 @@ export async function createTHU365FaceTracker(){
    if(segmenter)try{const out=segmenter.segmentForVideo(video,timestamp);const mask=out.categoryMask?.[0]??out.categoryMask;if(mask){const labels=mask.getAsUint8Array();const data=new Uint8Array(labels.length);for(let i=0;i<labels.length;i++)data[i]=labels[i]===3?255:0;result.skinMask={width:mask.width,height:mask.height,data};}}catch{/* retain face tracking */}
    return result;
   },
-  close(){disposed=true;face.close();segmenter?.close?.();segmenter=null;},
+  close(){disposed=true;face.close();segmenter?.close?.();segmenter=null;faceAsset.revoke?.();skinAsset.revoke?.();},
   get segmentationEnabled(){return Boolean(segmenter);}
  };
 }
