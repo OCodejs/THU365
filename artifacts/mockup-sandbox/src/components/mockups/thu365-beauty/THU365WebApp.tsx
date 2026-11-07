@@ -830,7 +830,7 @@ export function THU365WebApp() {
         .tw-toast{position:fixed;z-index:100;left:50%;bottom:max(90px,calc(env(safe-area-inset-bottom) + 80px));transform:translateX(-50%);max-width:90%;padding:11px 15px;border:1px solid #ffffff24;border-radius:99px;background:#211c1b;color:#f6f0ec;font-size:10px;white-space:nowrap}
         @media(max-height:700px){.tw-hero{height:225px}.tw-permission>.tw-back{margin-bottom:22px}.tw-camera-bottom{padding:0 18px}}
         @media(prefers-reduced-motion:reduce){.thu365-web *{scroll-behavior:auto}}
-      `}/* Mobile beauty workspace: prevent flex compression and provide an explicit expand/collapse control. */
+/* Mobile beauty workspace: prevent flex compression and provide an explicit expand/collapse control. */
         .tw-filter-row>.tw-auto-beauty,.tw-filter-row>.tw-manual-beauty{display:block!important;width:100%;min-width:0}
         .tw-filter-row>.tw-beauty-panel-header{display:flex!important;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;padding:4px 0 12px;border-bottom:1px solid #ffffff20;letter-spacing:0}
         .tw-beauty-panel-header>div{display:flex;flex-direction:column;gap:4px;min-width:0}
@@ -851,7 +851,8 @@ export function THU365WebApp() {
         .tw-filter-row-expanded .tw-ar-tools{flex-wrap:wrap;overflow:visible}
         .tw-filter-row-expanded .tw-ar-tools label{font-size:11px}
         @media(min-width:700px){.tw-filter-row-expanded{left:50%!important;right:auto!important;top:24px!important;bottom:24px!important;width:min(720px,calc(100vw - 48px))!important;transform:translateX(-50%)}.tw-filter-row-expanded .tw-reference-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-        </style>
+        
+      `}</style>
     </main>
   );
 }
