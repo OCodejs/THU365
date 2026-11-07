@@ -229,8 +229,23 @@ export function THU365WebApp() {
     void refreshAIModelInventory();
     if (!setupEntryRef.current) {
       setupEntryRef.current = true;
-      setActiveModule("setup");
-      setScreen("module");
+      if (!standalone || !("caches" in window)) {
+        setActiveModule("setup");
+        setScreen("module");
+      } else {
+        void (async () => {
+          try {
+            const cache = await caches.open(AI_MODEL_CACHE);
+            let ready = true;
+            for (const model of AI_MODEL_PACKS.filter(item => item.required)) {
+              const response = await cache.match(model.url);
+              const blob = response ? await response.blob() : null;
+              if (!await validateAIModelBlob(model,blob)) ready = false;
+            }
+            if (!ready) { setActiveModule("setup"); setScreen("module"); }
+          } catch { setActiveModule("setup"); setScreen("module"); }
+        })();
+      }
     }
     if (activeModule === "settings") void refreshDevicePermissions();
     if (activeModule === "ai-models") void refreshAIModelInventory();
