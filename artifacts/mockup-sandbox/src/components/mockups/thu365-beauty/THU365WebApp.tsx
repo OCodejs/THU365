@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createTHU365FaceTracker, renderFaceAR, type FaceARSettings } from "./THU365FaceAR";
 import {
-  ArrowLeft, Aperture, Camera, Check, ChevronRight, Download, FlipHorizontal2, Settings, UserRound, Menu, ScanFace, BookOpen, BrainCircuit, Palette, SlidersHorizontal, Bookmark,
+  ArrowLeft, Aperture, Camera, Check, ChevronRight, Download, FlipHorizontal2, Settings, UserRound, Menu, ScanFace, BookOpen, BrainCircuit, Palette, SlidersHorizontal, Bookmark, WandSparkles,
   Image as ImageIcon, LockKeyhole, Mic, Play, RotateCcw, ShieldCheck, Sparkles,
   Video, X, Zap, Clapperboard
 } from "lucide-react";
