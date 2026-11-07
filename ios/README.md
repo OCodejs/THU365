@@ -18,7 +18,7 @@ The Vite application is wrapped with Capacitor. The Xcode project is generated o
 
 ### Local build on macOS
 
-From artifacts/mockup-sandbox, install dependencies with pnpm, run pnpm build, run pnpm exec cap add ios once, then run pnpm exec cap sync ios. Open ios/App/App.xcworkspace in Xcode.
+From artifacts/mockup-sandbox, install dependencies with pnpm and run pnpm build. Then install the native toolchain with pnpm add -D @capacitor/cli@^7.4.3 @capacitor/core@^7.4.3 @capacitor/ios@^7.4.3. Run pnpm exec cap add ios once, then pnpm exec cap sync ios. Open ios/App/App.xcworkspace in Xcode.
 
 In Xcode, select the App target and Signing & Capabilities. Choose your own Apple Developer Team and confirm the Bundle ID com.ocodejs.thu365. Change the ID in capacitor.config.ts if it is unavailable.
 
