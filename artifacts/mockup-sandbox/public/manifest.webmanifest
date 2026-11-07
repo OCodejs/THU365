@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "THU365 Beauty Camera",
+  "short_name": "THU365",
+  "description": "AI beauty camera and creative studio",
+  "lang": "vi",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#100d0e",
+  "theme_color": "#100d0e",
+  "icons": [
+    { "src": "/thu365-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

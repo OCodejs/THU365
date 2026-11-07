@@ -7,7 +7,9 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "ios:add": "cap add ios",
+    "ios:sync": "cap sync ios"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -70,5 +72,6 @@
     "vaul": "^1.1.2",
     "vite": "catalog:",
     "zod": "catalog:"
-  }
+  },
+  "dependencies": {}
 }
