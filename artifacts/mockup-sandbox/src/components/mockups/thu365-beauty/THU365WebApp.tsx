@@ -51,6 +51,12 @@ export function THU365WebApp() {
   const [activeHomeReference, setActiveHomeReference] = useState(BEAUTY_REFERENCES[0].id);
   const [activeModule, setActiveModule] = useState("album");
   const [activeDocsTopic, setActiveDocsTopic] = useState("overview");
+  const [beautySkillQuery, setBeautySkillQuery] = useState("");
+  const [beautyCompareValue, setBeautyCompareValue] = useState(50);
+  const [beautyColorValues, setBeautyColorValues] = useState({warmth:0,tone:50,glow:35});
+  const [beautyAssistantChoice, setBeautyAssistantChoice] = useState("natural");
+  const [beautyPresetName, setBeautyPresetName] = useState("My Beauty Look");
+
   const [facing, setFacing] = useState<CameraFacing>("user");
   const [mode, setMode] = useState<MediaKind>("image");
   const [beauty, setBeauty] = useState(35);
@@ -720,6 +726,49 @@ export function THU365WebApp() {
                   <span className="tw-docs-kicker">PRESET WORKFLOW</span><h3>Preset Library & Personal Looks</h3><p>Một preset nên lưu thông số hiệu ứng, tên, mô tả và thời điểm cập nhật. Lưu cục bộ trước; đồng bộ đám mây là tính năng riêng cần đăng nhập và sự đồng ý.</p><ul><li>Lưu cấu hình hiện tại với tên do bạn đặt.</li><li>Áp dụng lại preset, nhân bản hoặc xóa.</li><li>Không ghi đè ảnh gốc; luôn giữ bản xuất riêng.</li></ul>
                 </>}
               </article>
+              <section className="tw-skills-suite">
+                <div className="tw-skills-suite-heading"><span>BEAUTY WORKSPACE</span><b>6 công cụ mở rộng</b><small>Thử trực tiếp các thao tác và lưu cấu hình trên thiết bị này.</small></div>
+                <div className="tw-skills-suite-tabs">
+                  {[
+                    {id:"library",label:"1 · Skill Library",icon:<Sparkles size={14}/>},
+                    {id:"presets-lab",label:"2 · Presets",icon:<Bookmark size={14}/>},
+                    {id:"compare-lab",label:"3 · Before / After",icon:<SlidersHorizontal size={14}/>},
+                    {id:"assistant-lab",label:"4 · AI Assistant",icon:<BrainCircuit size={14}/>},
+                    {id:"color-lab",label:"5 · Color Lab",icon:<Palette size={14}/>},
+                    {id:"video-lab",label:"6 · Video Effects",icon:<Video size={14}/>}
+                  ].map(t=><button key={t.id} className={activeDocsTopic===t.id?"is-active":""} onClick={()=>setActiveDocsTopic(t.id)}>{t.icon}{t.label}</button>)}
+                </div>
+                {activeDocsTopic==="library" ? <div className="tw-skills-suite-panel">
+                  <h3>Beauty Skill Library</h3><p>Tìm nhanh kỹ năng và mở hướng dẫn tương ứng.</p>
+                  <input value={beautySkillQuery} onChange={e=>setBeautySkillQuery(e.target.value)} placeholder="Tìm makeup, tóc, da, video..."/>
+                  <div className="tw-skill-library-grid">{[
+                    ["Face & Skin","skin","Phân vùng da · Glass Skin"],["Makeup","makeup","Son · Má · Eyeliner"],["Hair Studio","hair","Màu tóc · Kiểu tóc"],["Portrait Light","light","Ánh sáng · Tông phim"],["Background","background","Tách nền · Phông ảnh"],["AR Effects","ar","Sticker · Phụ kiện"],["Video Creator","video","Quay · Filter · Xuất video"],["Face Sculpt","face-shape","Tinh chỉnh đường nét"]
+                  ].filter(x=>(x[0]+" "+x[2]).toLowerCase().includes(beautySkillQuery.toLowerCase())).map(x=><button key={x[1]} onClick={()=>setActiveDocsTopic(x[1])}><b>{x[0]}</b><small>{x[2]}</small><ChevronRight size={14}/></button>)}</div>
+                </div> : activeDocsTopic==="presets-lab" ? <div className="tw-skills-suite-panel">
+                  <h3>Preset Manager</h3><p>Lưu cấu hình làm đẹp hiện tại vào bộ nhớ cục bộ của trình duyệt.</p>
+                  <input value={beautyPresetName} onChange={e=>setBeautyPresetName(e.target.value)} placeholder="Tên preset"/>
+                  <button className="tw-suite-primary" onClick={()=>{const name=beautyPresetName.trim();if(!name){showNotice("Hãy nhập tên preset");return;}const next=[...savedPresets,{name,settings:{...arSettings},preset,beauty,autoProfile}];setSavedPresets(next);localStorage.setItem("anhthu-ar-presets",JSON.stringify(next));showNotice("Đã lưu preset trên thiết bị");}}> <Bookmark size={14}/> Lưu cấu hình hiện tại</button>
+                  <div className="tw-saved-presets">{savedPresets.length?savedPresets.map((p,i)=><div key={p.name+"-"+i}><span><b>{p.name}</b><small>{p.preset||"custom"} · {p.beauty??35}%</small></span><button onClick={()=>{setArSettings({...p.settings});if(p.preset)setPreset(p.preset);if(p.beauty!==undefined)setBeauty(p.beauty);if(p.autoProfile)setAutoProfile(p.autoProfile);showNotice("Đã áp dụng "+p.name);}}>Áp dụng</button><button aria-label="Xóa preset" onClick={()=>{const next=savedPresets.filter((_,j)=>j!==i);setSavedPresets(next);localStorage.setItem("anhthu-ar-presets",JSON.stringify(next));}}>×</button></div>):<small>Chưa có preset nào được lưu.</small>}</div>
+                </div> : activeDocsTopic==="compare-lab" ? <div className="tw-skills-suite-panel">
+                  <h3>Before / After Lab</h3><p>{mediaUrl?"Kéo thanh để điều chỉnh vùng xem trước.":"Chụp hoặc chọn ảnh trong công cụ chỉnh sửa để có ảnh thật cho so sánh."}</p>
+                  {mediaUrl ? <div className="tw-compare-preview"><img src={mediaUrl} alt="Ảnh xem trước"/><div style={{clipPath:"inset(0 "+(100-beautyCompareValue)+"% 0 0)"}}><img src={mediaUrl} alt="Ảnh gốc"/></div><input aria-label="Thanh so sánh trước và sau" type="range" min="0" max="100" value={beautyCompareValue} onChange={e=>setBeautyCompareValue(Number(e.target.value))}/></div> : <button className="tw-suite-primary" onClick={()=>{setActiveModule("editor");setScreen("module");}}>Mở chỉnh sửa ảnh để chọn ảnh</button>}
+                  <label>Vị trí thanh so sánh · {beautyCompareValue}%</label><input type="range" min="0" max="100" value={beautyCompareValue} onChange={e=>setBeautyCompareValue(Number(e.target.value))}/>
+                </div> : activeDocsTopic==="assistant-lab" ? <div className="tw-skills-suite-panel">
+                  <h3>AnhThu Beauty Assistant</h3><p>Chọn mục tiêu để nhận preset gợi ý. Đây là gợi ý theo cấu hình cục bộ, không phải kết quả phân tích AI khuôn mặt.</p>
+                  <div className="tw-assistant-choices">{[["natural","Tự nhiên"],["glass","Glass Skin"],["douyin","Douyin Glam"],["soft","Soft Portrait"]].map(x=><button className={beautyAssistantChoice===x[0]?"is-active":""} key={x[0]} onClick={()=>setBeautyAssistantChoice(x[0])}>{x[1]}</button>)}</div>
+                  <div className="tw-assistant-result"><BrainCircuit size={19}/><span><b>Gợi ý: {beautyAssistantChoice}</b><small>Ưu tiên cường độ vừa phải, ánh sáng mềm và giữ chi tiết da.</small></span></div>
+                  <button className="tw-suite-primary" onClick={()=>{applyAutoBeauty(beautyAssistantChoice==="glass"?"cloud":beautyAssistantChoice==="douyin"?"softglam":beautyAssistantChoice==="soft"?"soft":"natural");setShortVideoMode(false);setMode("image");setError("");setScreen("permission");}}>Áp dụng gợi ý và mở camera</button>
+                </div> : activeDocsTopic==="color-lab" ? <div className="tw-skills-suite-panel">
+                  <h3>Color & Background Lab</h3><p>Điều chỉnh bảng màu thử nghiệm và lưu cùng preset.</p>
+                  {([["warmth","Nhiệt độ màu"],["tone","Tông màu"],["glow","Glow / ánh sáng"]] as const).map(([k,label])=><label key={k}>{label} · {beautyColorValues[k]}<input type="range" min="0" max="100" value={beautyColorValues[k]} onChange={e=>setBeautyColorValues(v=>({...v,[k]:Number(e.target.value)}))}/></label>)}
+                  <div className="tw-color-swatch" style={{filter:"hue-rotate("+((beautyColorValues.warmth-50)*.7)+"deg) saturate("+(0.7+beautyColorValues.tone/100)+") brightness("+(0.8+beautyColorValues.glow/250)+")"}}/>
+                  <small>Thanh màu là bản xem trước giao diện; cần pipeline color grading để áp dụng vào file ảnh/video xuất ra.</small>
+                </div> : activeDocsTopic==="video-lab" ? <div className="tw-skills-suite-panel">
+                  <h3>Video Effects Lab</h3><p>Chọn chế độ quay và mở camera video để thử các điều khiển hiện có.</p>
+                  <div className="tw-video-lab-options"><button onClick={()=>{setMode("video");setShortVideoMode(false);setError("");setScreen("permission");}}>Video thường · Camera</button><button onClick={()=>{setMode("video");setShortVideoMode(true);setError("");setScreen("permission");}}>Video ngắn · Creator</button></div>
+                  <ul><li>Kiểm tra quyền camera trước khi quay.</li><li>Kiểm tra dung lượng và thời lượng trước khi xuất.</li><li>Hiệu ứng AI video cần model realtime tương thích thiết bị.</li></ul>
+                </div> : null}
+              </section>
               <div className="tw-docs-footer"><BookOpen size={15}/><span>Tài liệu hướng dẫn phiên bản thử nghiệm. Trạng thái AI phụ thuộc model thực tế được tích hợp trong bản đang chạy.</span></div>
             </div>
           ) : activeModule === "settings" ? (
@@ -1092,6 +1141,23 @@ export function THU365WebApp() {
         .tw-docs-example span{font-size:7px;letter-spacing:.12em;color:#e5b6aa;font-weight:800}.tw-docs-example b{font:500 14px Georgia,serif;color:#fff0e9}.tw-docs-example small{font-size:8px;line-height:1.45;color:#c8bbb5}
         .tw-docs-example button{display:flex;align-items:center;gap:6px;margin-top:auto;padding:8px 10px;border:0;border-radius:9px;background:#e5b6aa;color:#24191a;font-size:9px;font-weight:800}
         @media(max-width:380px){.tw-docs-look-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.tw-docs-example{grid-template-columns:90px minmax(0,1fr)}.tw-docs-example>img{height:125px}}
+        .tw-skills-suite{display:grid;gap:10px;margin:12px 0;padding:13px;border:1px solid #e5b6aa42;border-radius:17px;background:linear-gradient(145deg,#21191a,#100f11)}
+        .tw-skills-suite-heading{display:grid;gap:4px}.tw-skills-suite-heading span{font-size:8px;letter-spacing:.15em;color:#e5b6aa;font-weight:800}.tw-skills-suite-heading b{font:500 19px Georgia,serif;color:#fff0e9}.tw-skills-suite-heading small{font-size:9px;color:#bbaea8}
+        .tw-skills-suite-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+        .tw-skills-suite-tabs button{display:flex;align-items:center;gap:6px;min-height:37px;padding:7px;border:1px solid #ffffff20;border-radius:9px;background:#ffffff08;color:#e9dcd6;font-size:9px;text-align:left}
+        .tw-skills-suite-tabs button.is-active{border-color:#e5b6aa;background:#e5b6aa20;color:#fff}
+        .tw-skills-suite-panel{display:grid;gap:10px;padding:12px;border:1px solid #ffffff1b;border-radius:12px;background:#ffffff07}
+        .tw-skills-suite-panel h3{margin:0;font:500 18px Georgia,serif;color:#fff0e9}.tw-skills-suite-panel p{margin:0;color:#bcaea8;font-size:9px;line-height:1.55}
+        .tw-skills-suite-panel input:not([type=range]){width:100%;padding:10px;border:1px solid #ffffff25;border-radius:9px;background:#090809;color:#fff;font-size:11px}
+        .tw-skills-suite-panel label{display:grid;gap:6px;color:#e9dcd6;font-size:9px}.tw-skills-suite-panel input[type=range]{width:100%;accent-color:#e5b6aa}
+        .tw-skill-library-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.tw-skill-library-grid button{display:grid;grid-template-columns:1fr 14px;gap:4px;padding:10px;border:1px solid #ffffff1c;border-radius:9px;background:#ffffff08;color:#fff;text-align:left}.tw-skill-library-grid b{font-size:9px}.tw-skill-library-grid small{grid-column:1;font-size:8px;color:#bbaea8}.tw-skill-library-grid svg{grid-column:2;grid-row:1/3;align-self:center}
+        .tw-suite-primary{display:flex;justify-content:center;align-items:center;gap:7px;padding:11px;border:0;border-radius:9px;background:#e5b6aa;color:#211719;font-size:10px;font-weight:800}
+        .tw-saved-presets{display:grid;gap:6px}.tw-saved-presets>div{display:flex;align-items:center;gap:6px;padding:8px;border:1px solid #ffffff18;border-radius:9px}.tw-saved-presets span{display:grid;gap:3px;flex:1}.tw-saved-presets b{font-size:9px}.tw-saved-presets small{font-size:8px;color:#bbaea8}.tw-saved-presets button{padding:7px;border:1px solid #ffffff24;border-radius:7px;background:#ffffff0a;color:#f2ded6;font-size:8px}
+        .tw-compare-preview{position:relative;overflow:hidden;aspect-ratio:4/3;border-radius:10px}.tw-compare-preview>img,.tw-compare-preview>div,.tw-compare-preview>div>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.tw-compare-preview>input{position:absolute;inset:auto 8px 8px;width:calc(100% - 16px)}
+        .tw-assistant-choices,.tw-video-lab-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.tw-assistant-choices button,.tw-video-lab-options button{padding:9px;border:1px solid #ffffff24;border-radius:9px;background:#ffffff08;color:#eee;font-size:9px}.tw-assistant-choices button.is-active{border-color:#e5b6aa;background:#e5b6aa22}
+        .tw-assistant-result{display:flex;align-items:center;gap:9px;padding:10px;border-radius:10px;background:#e5b6aa12;color:#e5b6aa}.tw-assistant-result span{display:grid;gap:4px}.tw-assistant-result b{font-size:9px}.tw-assistant-result small{font-size:8px;color:#c5b4ad}
+        .tw-color-swatch{height:68px;border-radius:10px;background:linear-gradient(110deg,#59454a,#d9a89b,#f4d4ba,#7b6d80,#28232b)}
+        @media(max-width:380px){.tw-skills-suite-tabs button{font-size:8px}.tw-skill-library-grid{grid-template-columns:1fr}}
       `}</style>
     </main>
   );
