@@ -28,7 +28,7 @@ PWA và native app dùng chung thương hiệu nhưng không có cùng mức tí
 - Chụp ảnh, quay video; microphone chỉ được hỏi khi người dùng chọn quay video có âm thanh.
 - Bộ lọc màu và điều chỉnh hình ảnh.
 - Các module trải nghiệm làm đẹp, preset, AI model center và Beauty Skills.
-- Nếu AI model hoặc CDN lỗi, camera cơ bản, bộ lọc màu và chụp ảnh vẫn hoạt động; Face Tracking/Skin Segmentation cần model tải thành công.
+- Nếu AI model hoặc CDN lỗi, camera cơ bản, bộ lọc màu và chụp ảnh vẫn hoạt động; Face Tracking cần Face Landmarker; Skin Segmentation là model riêng. Nếu model AI lỗi, camera cơ bản vẫn hoạt động.
 - Cài đặt dạng PWA từ Safari, mở độc lập từ biểu tượng Màn hình chính.
 - Cache app shell để hỗ trợ tải lại; lần truy cập đầu cần kết nối mạng.
 
