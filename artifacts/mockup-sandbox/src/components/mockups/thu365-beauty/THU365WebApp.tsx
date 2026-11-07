@@ -3,7 +3,7 @@ import { createTHU365FaceTracker, renderFaceAR, type FaceARSettings } from "./TH
 import {
   ArrowLeft, Aperture, Camera, Check, ChevronRight, Download, FlipHorizontal2, Settings, UserRound, Menu, ScanFace, BookOpen, BrainCircuit, Palette, SlidersHorizontal, Bookmark, WandSparkles,
   Image as ImageIcon, LockKeyhole, Mic, Play, RotateCcw, ShieldCheck, Sparkles,
-  Video, X, Zap, Clapperboard
+  Video, X, Zap, Clapperboard, HardDrive, Trash2, Wifi, Cpu
 } from "lucide-react";
 
 type Screen = "home" | "module" | "permission" | "camera" | "preview";
@@ -11,6 +11,12 @@ type MediaKind = "image" | "video";
 type CameraFacing = "user" | "environment";
 type BeautyPreset = { id: string; name: string; filter: string; description: string };
 type BeautyReference = { id:string;name:string;subtitle:string;image:string;gender:"Nam"|"Nữ";preset:string;beauty:number;settings:FaceARSettings;description:string };
+type AIModelPack = {id:string;name:string;version:string;url:string;description:string;sizeLabel:string;required:boolean};
+const AI_MODEL_CACHE = "anhthu-ai-models-v1";
+const AI_MODEL_PACKS: AIModelPack[] = [
+ {id:"face",name:"Face Landmarker",version:"MediaPipe · float16 v1",url:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",description:"Theo dõi landmark mắt, mũi, môi và đường viền khuôn mặt.",sizeLabel:"Dung lượng đo khi tải",required:true},
+ {id:"skin",name:"Skin Segmentation",version:"MediaPipe · multiclass 256",url:"https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite",description:"Phân vùng da để làm mịn theo vùng, giảm tác động lên tóc và nền.",sizeLabel:"Dung lượng đo khi tải",required:false}
+];
 const BEAUTY_REFERENCES: BeautyReference[] = [
   {id:"cn-male-clean",name:"C-Drama nam · Thanh lịch",subtitle:"Nam · ánh sáng studio",gender:"Nam",image:"https://images.pexels.com/photos/35514244/pexels-photo-35514244/free-photo-of-dramatic-studio-portrait-of-young-asian-male-model.jpeg?auto=compress&cs=tinysrgb&w=720",preset:"cool",beauty:38,settings:{smooth:32,lipstick:"none",blush:"none",eyeliner:false,hairTint:"none",sticker:"none",light:"studio"},description:"Da tự nhiên, tương phản nhẹ, ánh sáng điện ảnh"},
   {id:"cn-male-douyin",name:"Douyin nam · Sạch sáng",subtitle:"Nam · phong cách trẻ",gender:"Nam",image:"https://images.pexels.com/photos/34970889/pexels-photo-34970889/free-photo-of-young-asian-male-portrait-with-casual-fashion.jpeg?auto=compress&cs=tinysrgb&w=720",preset:"porcelain",beauty:44,settings:{smooth:42,lipstick:"none",blush:"none",eyeliner:false,hairTint:"none",sticker:"none",light:"soft"},description:"Làm dịu da, nâng sáng và giữ nét nam tính"},
@@ -105,6 +111,8 @@ export function THU365WebApp() {
   const [isStandalone, setIsStandalone] = useState(false);
   const [aiDiagnostics, setAiDiagnostics] = useState<{network:string;secure:string;camera:string;runtime:string;faceModel:string;skinModel:string} | null>(null);
   const [checkingAI, setCheckingAI] = useState(false);
+  const [aiModelStates, setAiModelStates] = useState<Record<string,{installed:boolean;bytes:number;downloading:boolean;progress:number;error:string}>>({});
+  const [aiModelBusy, setAiModelBusy] = useState(false);
   const [arReady, setArReady] = useState(false);
   const [aiRetry, setAiRetry] = useState(0);
   function updateStudioSettings(patch: Partial<{photo:string;video:string;fps:string;mirror:boolean}>) { setStudioSettings((current:any) => { const next = {...current, ...patch}; localStorage.setItem("anhthu-studio-settings", JSON.stringify(next)); return next; }); }
@@ -131,6 +139,31 @@ export function THU365WebApp() {
     ]);
     setAiDiagnostics({ network, secure, camera, runtime: runtimeResult, faceModel, skinModel });
     setCheckingAI(false);
+  }
+
+  async function refreshAIModelInventory() {
+    if (!("caches" in window)) return;
+    try { const cache=await caches.open(AI_MODEL_CACHE); const next:Record<string,{installed:boolean;bytes:number;downloading:boolean;progress:number;error:string}>={};
+      for(const model of AI_MODEL_PACKS){const response=await cache.match(model.url);const blob=response?await response.blob():null;next[model.id]={installed:Boolean(blob),bytes:blob?.size??0,downloading:false,progress:blob?100:0,error:""};}
+      setAiModelStates(next);
+    } catch(cause){console.warn("Cannot inspect AI model cache",cause);}
+  }
+  async function downloadAIModel(model:AIModelPack) {
+    if(!("caches" in window)){showNotice("Trình duyệt không hỗ trợ lưu model offline.");return;}
+    setAiModelBusy(true);setAiModelStates(v=>({...v,[model.id]:{installed:false,bytes:0,downloading:true,progress:0,error:""}}));
+    try{
+      const response=await fetch(model.url,{mode:"cors",cache:"no-cache"});if(!response.ok||!response.body)throw new Error("Máy chủ trả HTTP "+response.status);
+      const total=Number(response.headers.get("content-length")||0),reader=response.body.getReader(),chunks:Uint8Array[]=[];let received=0;
+      while(true){const part=await reader.read();if(part.done)break;if(part.value){chunks.push(part.value);received+=part.value.byteLength;setAiModelStates(v=>({...v,[model.id]:{installed:false,bytes:received,downloading:true,progress:total?Math.min(99,Math.round(received/total*100)):0,error:""}}));}}
+      const blob=new Blob(chunks,{type:"application/octet-stream"});if(!blob.size)throw new Error("Tệp model rỗng");
+      const cache=await caches.open(AI_MODEL_CACHE);await cache.put(model.url,new Response(blob,{headers:{"Content-Type":"application/octet-stream","Content-Length":String(blob.size)}}));
+      setAiModelStates(v=>({...v,[model.id]:{installed:true,bytes:blob.size,downloading:false,progress:100,error:""}}));showNotice(model.name+" đã tải và lưu trên thiết bị");
+    }catch(cause){const message=cause instanceof Error?cause.message:"Không thể tải model";setAiModelStates(v=>({...v,[model.id]:{installed:false,bytes:0,downloading:false,progress:0,error:message}}));showNotice("Tải model thất bại · kiểm tra mạng hoặc CORS");}
+    finally{setAiModelBusy(false);}
+  }
+  async function removeAIModel(model:AIModelPack){
+    try{const cache=await caches.open(AI_MODEL_CACHE);await cache.delete(model.url);setAiModelStates(v=>({...v,[model.id]:{installed:false,bytes:0,downloading:false,progress:0,error:""}}));showNotice("Đã xóa model "+model.name+" khỏi thiết bị");}
+    catch{showNotice("Không thể xóa model khỏi bộ nhớ trình duyệt");}
   }
 
   async function refreshDevicePermissions() {
@@ -587,6 +620,7 @@ export function THU365WebApp() {
                 <button onClick={() => {setHomeMenuOpen(false);setActiveModule("effects");setScreen("module");}}><ScanFace/><b>Hiệu ứng</b></button>
                 <button onClick={() => {setHomeMenuOpen(false);setActiveModule("short-video");setShortVideoMode(true);setMode("video");setError("");setScreen("permission");}}><Clapperboard/><b>Video ngắn</b></button>
                 <button onClick={() => {setHomeMenuOpen(false);setActiveModule("docs");setScreen("module");}}><BookOpen/><b>Docs Beauty Skills</b></button>
+                <button onClick={() => {setHomeMenuOpen(false);setActiveModule("ai-models");void refreshAIModelInventory();setScreen("module");}}><BrainCircuit/><b>Tải AI Models</b></button>
                 <button onClick={() => {setHomeMenuOpen(false);setActiveModule("settings");setScreen("module");}}><Settings/><b>Cài đặt</b></button>
                 <button onClick={() => {setHomeMenuOpen(false);setActiveModule("profile");setScreen("module");}}><UserRound/><b>Hồ sơ</b></button>
               </div>
@@ -653,9 +687,23 @@ export function THU365WebApp() {
         <section className="tw-module-screen">
           <header className="tw-preview-header">
             <button className="tw-back" onClick={() => setScreen("home")} aria-label="Quay lại"><ArrowLeft size={19}/></button>
-            <div><b>{activeModule === "docs" ? "Docs · Beauty Skills" : activeModule === "settings" ? "Cài đặt ứng dụng" : activeModule === "profile" ? "Hồ sơ của tôi" : activeModule === "album" ? "Album của tôi" : activeModule === "editor" ? "Chỉnh sửa ảnh" : activeModule === "sharp" ? "Làm nét ảnh AI" : activeModule === "beauty" ? "AI làm đẹp" : activeModule === "short-video" ? "Video ngắn" : "Hiệu ứng quốc tế"}</b><small>ANHTHU · KHÔNG GIAN RIÊNG TƯ</small></div>
+            <div><b>{activeModule === "ai-models" ? "Tải AI Models" : activeModule === "docs" ? "Docs · Beauty Skills" : activeModule === "settings" ? "Cài đặt ứng dụng" : activeModule === "profile" ? "Hồ sơ của tôi" : activeModule === "album" ? "Album của tôi" : activeModule === "editor" ? "Chỉnh sửa ảnh" : activeModule === "sharp" ? "Làm nét ảnh AI" : activeModule === "beauty" ? "AI làm đẹp" : activeModule === "short-video" ? "Video ngắn" : "Hiệu ứng quốc tế"}</b><small>ANHTHU · KHÔNG GIAN RIÊNG TƯ</small></div>
           </header>
-          {activeModule === "docs" ? (
+          {activeModule === "ai-models" ? (
+            <div className="tw-ai-model-center">
+              <div className="tw-ai-model-hero"><span><BrainCircuit size={26}/></span><div><b>AI Model Center</b><p>Tải, quản lý và xóa các mô hình AI dùng cho camera làm đẹp. Model được lưu trong bộ nhớ trình duyệt trên thiết bị này.</p></div></div>
+              <div className="tw-ai-model-summary"><div><b>{Object.values(aiModelStates).filter(x=>x.installed).length}/{AI_MODEL_PACKS.length}</b><small>Model đã cài</small></div><div><b>{(Object.values(aiModelStates).reduce((n,x)=>n+x.bytes,0)/1048576).toFixed(1)} MB</b><small>Dung lượng đã lưu</small></div><button onClick={()=>void refreshAIModelInventory()}><RotateCcw size={14}/> Làm mới</button></div>
+              <div className="tw-ai-model-list">{AI_MODEL_PACKS.map(model=>{const state=aiModelStates[model.id]||{installed:false,bytes:0,downloading:false,progress:0,error:""};return <article className="tw-ai-model-card" key={model.id}>
+                <div className="tw-ai-model-card-top"><span className="tw-ai-model-icon">{model.id==="face"?<ScanFace size={21}/>:<Sparkles size={21}/>}</span><div><b>{model.name}</b><small>{model.version} · {model.required?"Cốt lõi":"Tùy chọn"}</small></div><span className={state.installed?"tw-ai-model-installed":"tw-ai-model-cloud"}>{state.installed?<Check size={14}/>:<Wifi size={14}/>}</span></div>
+                <p>{model.description}</p><div className="tw-ai-model-meta"><span><HardDrive size={13}/> {state.installed?(state.bytes/1048576).toFixed(2)+" MB đã lưu":model.sizeLabel}</span><span><Cpu size={13}/> Thiết bị</span></div>
+                {state.downloading&&<div className="tw-ai-progress"><div style={{width:state.progress+"%"}}/></div>}{state.error&&<small className="tw-ai-model-error">{state.error}</small>}
+                <div className="tw-ai-model-actions">{state.installed?<><button className="tw-suite-primary" onClick={()=>void refreshAIModelInventory()}><Check size={14}/> Đã cài đặt</button><button className="tw-ai-remove" onClick={()=>void removeAIModel(model)}><Trash2 size={14}/> Xóa</button></>:<button className="tw-suite-primary" disabled={state.downloading||aiModelBusy} onClick={()=>void downloadAIModel(model)}><Download size={14}/>{state.downloading?"Đang tải…":"Tải model về máy"}</button>}</div>
+              </article>;})}</div>
+              <div className="tw-ai-model-note"><ShieldCheck size={16}/><p><b>Riêng tư:</b> model được lưu trong Cache Storage trên thiết bị. Ảnh/video không được tải lên máy chủ.</p></div>
+              <div className="tw-ai-model-note tw-ai-model-warning"><Wifi size={16}/><p><b>Lưu ý:</b> MediaPipe runtime và WASM vẫn cần tải riêng. Model đã lưu không đồng nghĩa toàn bộ ứng dụng chạy offline. Mở lại camera để tracker nạp model từ cache.</p></div>
+              <button className="tw-secondary" onClick={()=>{setActiveModule("settings");setScreen("module");}}>Mở chẩn đoán mạng & AI</button>
+            </div>
+          ) :           {activeModule === "docs" ? (
             <div className="tw-docs-hub">
               <div className="tw-docs-hero">
                 <div className="tw-docs-hero-icon"><BookOpen size={25}/></div>
@@ -1158,7 +1206,7 @@ export function THU365WebApp() {
         .tw-assistant-result{display:flex;align-items:center;gap:9px;padding:10px;border-radius:10px;background:#e5b6aa12;color:#e5b6aa}.tw-assistant-result span{display:grid;gap:4px}.tw-assistant-result b{font-size:9px}.tw-assistant-result small{font-size:8px;color:#c5b4ad}
         .tw-color-swatch{height:68px;border-radius:10px;background:linear-gradient(110deg,#59454a,#d9a89b,#f4d4ba,#7b6d80,#28232b)}
         @media(max-width:380px){.tw-skills-suite-tabs button{font-size:8px}.tw-skill-library-grid{grid-template-columns:1fr}}
-      `}</style>
+      `}.tw-ai-model-center{display:grid;gap:13px;padding:14px 0 24px}.tw-ai-model-hero{display:flex;gap:12px;align-items:center;padding:16px;border:1px solid #e5b6aa44;border-radius:17px;background:linear-gradient(135deg,#e5b6aa20,#ffffff05)}.tw-ai-model-hero>span{width:48px;height:48px;display:grid;place-items:center;flex:0 0 auto;border-radius:15px;background:#e5b6aa24;color:#e5b6aa}.tw-ai-model-hero b{font:500 20px Georgia,serif;color:#fff0e9}.tw-ai-model-hero p{margin:5px 0 0;color:#c6b8b2;font-size:11px;line-height:1.5}.tw-ai-model-summary{display:grid;grid-template-columns:1fr 1fr auto;align-items:center;gap:8px;padding:12px;border-radius:14px;background:#ffffff09}.tw-ai-model-summary>div{display:grid;gap:3px}.tw-ai-model-summary b{font-size:16px;color:#fff}.tw-ai-model-summary small{font-size:9px;color:#b9aaa4}.tw-ai-model-summary button,.tw-ai-remove{display:flex;align-items:center;gap:5px;padding:8px;border:1px solid #ffffff20;border-radius:9px;background:#ffffff08;color:#f5e8e2;font-size:9px}.tw-ai-model-list{display:grid;gap:10px}.tw-ai-model-card{padding:14px;border:1px solid #ffffff18;border-radius:15px;background:linear-gradient(145deg,#211b1b,#111012)}.tw-ai-model-card-top{display:flex;align-items:center;gap:10px}.tw-ai-model-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:#e5b6aa1d;color:#e5b6aa}.tw-ai-model-card-top>div{display:grid;gap:3px;flex:1;min-width:0}.tw-ai-model-card-top b{font-size:12px;color:#fff}.tw-ai-model-card-top small{font-size:9px;color:#bba9a2}.tw-ai-model-installed,.tw-ai-model-cloud{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#72f4cb20;color:#72f4cb}.tw-ai-model-cloud{background:#e5b6aa18;color:#e5b6aa}.tw-ai-model-card p{margin:11px 0;color:#c8bbb5;font-size:10px;line-height:1.55}.tw-ai-model-meta{display:flex;justify-content:space-between;gap:8px;color:#b9aaa4;font-size:9px}.tw-ai-model-meta span{display:flex;align-items:center;gap:5px}.tw-ai-progress{height:5px;margin:11px 0;border-radius:9px;background:#ffffff18;overflow:hidden}.tw-ai-progress>div{height:100%;border-radius:9px;background:#e5b6aa;transition:width .2s}.tw-ai-model-error{display:block;margin-top:8px;color:#ff9b9b;font-size:9px}.tw-ai-model-actions{display:flex;gap:8px;margin-top:12px}.tw-ai-model-actions .tw-suite-primary{display:flex;align-items:center;justify-content:center;gap:7px;flex:1;min-height:38px}.tw-ai-model-note{display:flex;gap:9px;padding:12px;border-radius:12px;background:#72f4cb0d;color:#9ce9d1}.tw-ai-model-note p{margin:0;color:#c8bbb5;font-size:9px;line-height:1.55}.tw-ai-model-note b{color:#e9d7ce}.tw-ai-model-warning{background:#e5b6aa0d;color:#e5b6aa}@media(max-width:380px){.tw-ai-model-summary{grid-template-columns:1fr 1fr}.tw-ai-model-summary button{grid-column:1/-1;justify-content:center}}</style>
     </main>
   );
 }
