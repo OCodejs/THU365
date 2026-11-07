@@ -865,23 +865,24 @@ export function THU365WebApp() {
           </header>
           {activeModule === "setup" ? (
             <div className="tw-ai-model-center">
-              <div className="tw-ai-model-hero"><span><ShieldCheck size={26}/></span><div><b>Quy trình cài đặt bắt buộc</b><p>Camera chỉ mở sau khi AnhThu được cài vào Màn hình chính và hai model AI cốt lõi đã tải, lưu thành công trên thiết bị.</p></div></div>
+              <div className="tw-ai-model-hero"><span><ShieldCheck size={26}/></span><div><b>Quy trình cài đặt tự động</b><p>AnhThu tự chạy lần lượt tải AI, xác minh model, xin quyền thiết bị và mở camera sau khi bạn cài ứng dụng.</p></div></div>
+              <div className="tw-ai-model-note"><Cpu size={16}/><p><b>Trạng thái tự động:</b> {setupStage==="install"?"Đang chờ cài ứng dụng vào Màn hình chính":setupStage==="models"?"Đang tải và xác minh các model AI bắt buộc":setupStage==="camera"?"Đang xin quyền camera · cần bạn xác nhận nếu iOS hỏi":setupStage==="ready"?"Đã hoàn tất thiết lập · đang mở camera": "Thiết lập tạm dừng · cần xử lý lỗi rồi thử lại"}.</p></div>
               <article className="tw-ai-model-card">
                 <div className="tw-ai-model-card-top"><span className="tw-ai-model-icon"><Download size={21}/></span><div><b>Bước 1 · Cài ứng dụng AnhThu</b><small>{isStandalone ? "Đã chạy ở chế độ ứng dụng" : "Chưa cài · cần thêm vào Màn hình chính"}</small></div><span className={isStandalone?"tw-ai-model-installed":"tw-ai-model-cloud"}>{isStandalone?<Check size={14}/>:<Wifi size={14}/>}</span></div>
                 <p>iPhone: mở bằng Safari → Chia sẻ → Thêm vào Màn hình chính → Thêm. Sau đó mở AnhThu từ icon vừa tạo. Android: dùng menu trình duyệt → Cài đặt ứng dụng / Add to Home screen.</p>
-                <button className="tw-suite-primary" onClick={()=>{const installed=window.matchMedia?.("(display-mode: standalone)").matches||(navigator as any).standalone===true;setIsStandalone(Boolean(installed));showNotice(installed?"Đã xác nhận ứng dụng đang chạy độc lập.":"Chưa phát hiện ứng dụng đã cài. Hãy hoàn tất bước Thêm vào Màn hình chính.");}}>Kiểm tra trạng thái cài ứng dụng</button>
+                <button className="tw-suite-primary" onClick={()=>{const installed=window.matchMedia?.("(display-mode: standalone)").matches||(navigator as any).standalone===true;setIsStandalone(Boolean(installed));if(installed){void runAutoSetup();}else{setSetupStage("install");showNotice("Hãy thêm AnhThu vào Màn hình chính rồi mở ứng dụng vừa cài.");}}}>Kiểm tra và tự chạy bước tiếp theo</button>
               </article>
               <article className="tw-ai-model-card">
                 <div className="tw-ai-model-card-top"><span className="tw-ai-model-icon"><BrainCircuit size={21}/></span><div><b>Bước 2 · Tải và cài AI</b><small>Face Landmarker + Skin Segmentation · bắt buộc</small></div><span className="tw-ai-model-cloud"><Cpu size={14}/></span></div>
                 <p>Hai model được tải và lưu trong Cache Storage riêng của ứng dụng. MediaPipe JavaScript runtime và WASM được tải tự động từ CDN khi khởi chạy AI; cần internet ở lần khởi tạo và không được tính là đã cài offline.</p>
-                <button className="tw-suite-primary" onClick={()=>{const installed=window.matchMedia?.("(display-mode: standalone)").matches||(navigator as any).standalone===true;if(!installed){showNotice("Bước 1 chưa hoàn tất · cài AnhThu vào Màn hình chính rồi mở lại ứng dụng.");return;}setActiveModule("ai-models");void refreshAIModelInventory();}}>Mở AI Model Center <ChevronRight size={15}/></button>
+                <button className="tw-suite-primary" onClick={()=>{const installed=window.matchMedia?.("(display-mode: standalone)").matches||(navigator as any).standalone===true;if(!installed){showNotice("Bước 1 chưa hoàn tất · cài AnhThu vào Màn hình chính rồi mở lại ứng dụng.");return;}void runAutoSetup();}}>Tự động tải AI và tiếp tục <ChevronRight size={15}/></button>
               </article>
               <article className="tw-ai-model-card">
                 <div className="tw-ai-model-card-top"><span className="tw-ai-model-icon"><Camera size={21}/></span><div><b>Bước 3 · Cấp quyền thiết bị</b><small>Camera bắt buộc · Microphone khi quay video có tiếng</small></div></div>
                 <p>Chỉ sau khi cài ứng dụng và tải đủ hai model, chạm nút dưới đây để Safari hiển thị yêu cầu quyền. Người dùng phải tự xác nhận; ứng dụng web không thể tự cấp quyền thay người dùng.</p>
-                <button className="tw-suite-primary" disabled={!isStandalone||!AI_MODEL_PACKS.every(model=>!model.required||aiModelStates[model.id]?.installed)} onClick={()=>void requestSetupPermissions()}>Xin quyền Camera & Microphone</button>
+                <button className="tw-suite-primary" disabled={!isStandalone||!AI_MODEL_PACKS.every(model=>!model.required||aiModelStates[model.id]?.installed)} onClick={()=>void runAutoSetup()}>Tiếp tục tự động · Xin quyền thiết bị</button>
               </article>
-              <button className="tw-secondary" disabled={!isStandalone||!AI_MODEL_PACKS.filter(model=>model.required).every(model=>aiModelStates[model.id]?.installed)} onClick={()=>{void startCamera();}}>Hoàn tất thiết lập · Mở Camera</button>
+              <button className="tw-secondary" disabled={!isStandalone||!AI_MODEL_PACKS.filter(model=>model.required).every(model=>aiModelStates[model.id]?.installed)} onClick={()=>void runAutoSetup()}>Chạy lại quy trình tự động</button>
               <div className="tw-ai-model-note tw-ai-model-warning"><Wifi size={16}/><p><b>Điều kiện:</b> dùng HTTPS, trình duyệt hỗ trợ WebAssembly, WebGL/GPU hoặc CPU fallback, Cache Storage và có mạng khi tải runtime/WASM.</p></div>
               <button className="tw-secondary" onClick={()=>{setActiveModule("ai-models");void refreshAIModelInventory();}}>Tiếp tục cài AI Models</button>
             </div>
