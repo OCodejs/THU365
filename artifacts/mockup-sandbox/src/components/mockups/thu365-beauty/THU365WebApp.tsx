@@ -23,7 +23,17 @@ const BEAUTY_PRESETS: BeautyPreset[] = [
   { id: "cool", name: "Cool", filter: "brightness(1.06) saturate(.92) hue-rotate(9deg) contrast(1.06)", description: "Trong trẻo, tông lạnh" },
   { id: "film", name: "Film", filter: "brightness(1.02) saturate(.78) sepia(.16) contrast(1.12)", description: "Màu film hoài cổ" },
   { id: "glow", name: "Golden", filter: "brightness(1.1) saturate(1.18) sepia(.1)", description: "Ánh vàng rực rỡ" },
-  { id: "mono", name: "Mono", filter: "grayscale(1) contrast(1.12)", description: "Đen trắng tối giản" }
+  { id: "mono", name: "Mono", filter: "grayscale(1) contrast(1.12)", description: "Đen trắng tối giản" },
+  { id: "porcelain", name: "Porcelain", filter: "brightness(1.14) saturate(.92) contrast(.94)", description: "Da sáng trong, tông sứ" },
+  { id: "lavender", name: "Lavender", filter: "brightness(1.08) saturate(.95) hue-rotate(18deg)", description: "Tím lavender dịu" },
+  { id: "cocoa", name: "Cocoa", filter: "brightness(1.03) saturate(.86) sepia(.28) contrast(1.06)", description: "Nâu cacao ấm" },
+  { id: "sunset", name: "Sunset", filter: "brightness(1.08) saturate(1.24) sepia(.18) hue-rotate(-8deg)", description: "Ánh hoàng hôn cam đào" },
+  { id: "icy", name: "Icy Blue", filter: "brightness(1.12) saturate(.82) hue-rotate(22deg) contrast(1.04)", description: "Ánh xanh lạnh trong trẻo" },
+  { id: "vintage", name: "Vintage", filter: "brightness(1.02) saturate(.72) sepia(.32) contrast(1.08)", description: "Màu ảnh film cổ điển" },
+  { id: "vivid", name: "Vivid", filter: "brightness(1.06) saturate(1.35) contrast(1.08)", description: "Màu sắc nổi bật" },
+  { id: "fairy", name: "Fairy Glow", filter: "brightness(1.16) saturate(1.08) contrast(.9) sepia(.06)", description: "Ánh sáng mơ màng" },
+  { id: "matte", name: "Matte", filter: "brightness(1.05) saturate(.9) contrast(.88)", description: "Màu lì mềm mại" },
+  { id: "noir", name: "Noir", filter: "grayscale(1) contrast(1.28) brightness(.96)", description: "Đen trắng điện ảnh" },
 ];
 
 export function THU365WebApp() {
@@ -41,6 +51,7 @@ export function THU365WebApp() {
   const activePreset = BEAUTY_PRESETS.find((item) => item.id === preset) ?? BEAUTY_PRESETS[0];
   const [recording, setRecording] = useState(false);
   const [shortVideoMode, setShortVideoMode] = useState(false);
+  const [videoLimitSeconds, setVideoLimitSeconds] = useState(600);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const shortVideoTimerRef = useRef<number | null>(null);
   const recordingClockRef = useRef<number | null>(null);
@@ -116,6 +127,7 @@ export function THU365WebApp() {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioStreamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const processedVideoStreamRef = useRef<MediaStream | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -291,8 +303,9 @@ export function THU365WebApp() {
       context.translate(canvas.width, 0);
       context.scale(-1, 1);
     }
-    context.filter = `${activePreset.filter} brightness(${1 + beauty / 650}) saturate(${1 + beauty / 500})`;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const processedFrame = arReady && arCanvasRef.current?.width ? arCanvasRef.current : video;
+    context.filter = processedFrame === video ? `${activePreset.filter} brightness(${1 + beauty / 650}) saturate(${1 + beauty / 500})` : "none";
+    context.drawImage(processedFrame, 0, 0, canvas.width, canvas.height);
     canvas.toBlob((blob) => {
       if (!blob) {
         showNotice("Không thể tạo ảnh. Hãy thử lại.");
@@ -318,10 +331,12 @@ export function THU365WebApp() {
       const audio = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       audioStreamRef.current = audio;
       void refreshDevicePermissions();
-      const recordingStream = new MediaStream([
-        ...streamRef.current.getVideoTracks(),
-        ...audio.getAudioTracks()
-      ]);
+      // Record the processed AR canvas whenever face tracking is ready; use the raw camera only as a startup fallback.
+      const processedCanvas = arReady ? arCanvasRef.current : null;
+      processedVideoStreamRef.current = processedCanvas?.captureStream ? processedCanvas.captureStream(30) : null;
+      const processedTracks = processedVideoStreamRef.current?.getVideoTracks() ?? [];
+      const sourceVideoTracks = processedTracks.length ? processedTracks : streamRef.current.getVideoTracks();
+      const recordingStream = new MediaStream([...sourceVideoTracks, ...audio.getAudioTracks()]);
       const candidates = ["video/mp4;codecs=h264,aac", "video/mp4", "video/webm;codecs=vp8,opus", "video/webm"];
       const mimeType = candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate));
       const targetBitrate = studioSettings.video === "4k" ? 20_000_000 : studioSettings.video === "720" ? 6_000_000 : 12_000_000;
@@ -336,6 +351,8 @@ export function THU365WebApp() {
         const blob = new Blob(chunksRef.current, { type });
         audioStreamRef.current?.getTracks().forEach((track) => track.stop());
         audioStreamRef.current = null;
+        processedVideoStreamRef.current?.getTracks().forEach((track) => track.stop());
+        processedVideoStreamRef.current = null;
         setMediaBlob(blob);
         setMediaType("video");
         setMediaName(`anhthu-${Date.now()}.${type.includes("mp4") ? "mp4" : "webm"}`);
@@ -354,7 +371,7 @@ export function THU365WebApp() {
       if (recordingClockRef.current) window.clearInterval(recordingClockRef.current);
       const startedAt = Date.now();
       recordingClockRef.current = window.setInterval(() => setRecordingSeconds(Math.floor((Date.now() - startedAt) / 1000)), 500);
-      if (shortVideoMode) shortVideoTimerRef.current = window.setTimeout(() => stopRecording(), 60_000);
+      if (shortVideoMode) shortVideoTimerRef.current = window.setTimeout(() => stopRecording(), videoLimitSeconds * 1000);
       setMicGuide(false);
     } catch (cause) {
       const name = cause instanceof DOMException ? cause.name : "";
@@ -535,17 +552,23 @@ export function THU365WebApp() {
             <video ref={videoRef} autoPlay muted playsInline className="tw-live-video" style={{ opacity: arReady ? 0 : 1, transform: facing === "user" && studioSettings.mirror ? "scaleX(-1)" : "none" }} /><canvas ref={arCanvasRef} className="tw-ar-canvas" style={{ opacity: arReady ? 1 : 0, transform: facing === "user" && studioSettings.mirror ? "scaleX(-1)" : "none" }} />
             <div className="tw-live-shade" />
             <header className="tw-camera-header">
-              <button className="tw-glass" onClick={returnHome} aria-label="Đóng camera"><ArrowLeft size={19} /></button>
-              <div className="tw-brand">Anh<span>Thu</span></div>
-              <button className="tw-glass" onClick={() => void startCamera(facing === "user" ? "environment" : "user")} aria-label="Đổi camera"><FlipHorizontal2 size={19} /></button>
+              <button className="tw-glass" onClick={returnHome} aria-label="Đóng camera"><X size={21} /></button>
+              <div className="tw-camera-title-pill"><Sparkles size={14} /> AnhThu Beauty Studio</div>
+              <button className="tw-glass" onClick={() => void startCamera(facing === "user" ? "environment" : "user")} aria-label="Đổi camera"><FlipHorizontal2 size={20} /></button>
             </header>
+            <aside className="tw-camera-rail" aria-label="Công cụ camera">
+              <button type="button" onClick={() => setBeautyPanel(beautyPanel === "auto" ? "manual" : "auto")} aria-label="Chuyển chế độ làm đẹp"><Sparkles size={19}/><small>Beauty</small></button>
+              <button type="button" onClick={() => { setBeautyPanel("manual"); showNotice("Điều chỉnh ánh sáng trong bảng làm đẹp"); }} aria-label="Điều chỉnh ánh sáng"><Zap size={19}/><small>Ánh sáng</small></button>
+              <button type="button" onClick={() => { setMode("video"); setShortVideoMode(true); setVideoLimitSeconds(15); showNotice("Đã chọn video 15 giây"); }} aria-label="Video nhanh"><Clapperboard size={19}/><small>15s</small></button>
+              <button type="button" onClick={() => fileRef.current?.click()} aria-label="Mở thư viện"><ImageIcon size={19}/><small>Thư viện</small></button>
+            </aside>
             <div className="tw-live-label"><span /> {trackingStatus.toUpperCase()} · {cameraQuality}</div>
             {trackingStatus.includes("AI chưa tải") && <button type="button" className="tw-ai-retry" onClick={() => { setTrackingStatus("Đang thử tải lại AI"); setAiRetry((value) => value + 1); }}>Thử tải lại AI</button>}
             <div className="tw-camera-bottom">
               <div className="tw-filter-row">
                 <div className="tw-beauty-tabs"><button type="button" className={beautyPanel === "auto" ? "is-active" : ""} onClick={() => setBeautyPanel("auto")}>✨ TỰ ĐỘNG</button><button type="button" className={beautyPanel === "manual" ? "is-active" : ""} onClick={() => setBeautyPanel("manual")}>🎚 THỦ CÔNG</button><b>{beauty}%</b></div>
                 {beautyPanel === "auto" ? <div className="tw-auto-beauty"><p>Chọn phong cách · AnhThu tự áp dụng bộ thông số làm đẹp</p><div className="tw-auto-profiles"><button onClick={() => applyAutoBeauty("natural")} className={autoProfile === "natural" ? "is-active" : ""}>Natural</button><button onClick={() => applyAutoBeauty("cloud")} className={autoProfile === "cloud" ? "is-active" : ""}>Cloud Skin</button><button onClick={() => applyAutoBeauty("softglam")} className={autoProfile === "softglam" ? "is-active" : ""}>Soft Glam</button><button onClick={() => applyAutoBeauty("peach")} className={autoProfile === "peach" ? "is-active" : ""}>Peach Glow</button></div><button className="tw-auto-apply" onClick={() => applyAutoBeauty()}>✨ Auto setup làm đẹp</button></div> : <div className="tw-manual-beauty"><div className="tw-manual-head"><span>ĐIỀU CHỈNH THỦ CÔNG</span><button type="button" onClick={() => {setBeauty(0);setArSettings({smooth:0,lipstick:"none",blush:"none",eyeliner:false,hairTint:"none",sticker:"none",light:"none"});}}>Đặt lại</button></div><label>Độ mịn da <input type="range" min="0" max="100" value={arSettings.smooth} onChange={(e) => setArSettings(v => ({...v,smooth:Number(e.target.value)}))}/><small>{arSettings.smooth}%</small></label><label>Ánh sáng & màu <input type="range" min="0" max="100" value={beauty} onChange={(e) => setBeauty(Number(e.target.value))}/><small>{beauty}%</small></label></div>}
-                <div className="tw-ar-tools"><label>SON <select value={arSettings.lipstick} onChange={(e) => setArSettings(v => ({...v, lipstick:e.target.value}))}><option value="none">Tắt</option><option value="rgba(190,48,83,.9)">Đỏ cherry</option><option value="rgba(190,95,105,.9)">Hồng đất</option><option value="rgba(145,70,105,.9)">Mận</option></select></label><label>MÁ HỒNG <select value={arSettings.blush} onChange={(e) => setArSettings(v => ({...v, blush:e.target.value}))}><option value="none">Tắt</option><option value="rgba(238,105,135,.8)">Rose</option><option value="rgba(240,150,105,.8)">Peach</option></select></label><label><input type="checkbox" checked={arSettings.eyeliner} onChange={(e) => setArSettings(v => ({...v, eyeliner:e.target.checked}))}/> Eyeliner</label><label>TÓC <select value={arSettings.hairTint} onChange={(e) => setArSettings(v => ({...v, hairTint:e.target.value}))}><option value="none">Tự nhiên</option><option value="#8b4d2d">Nâu</option><option value="#c69a45">Vàng</option><option value="#7b477e">Tím</option></select></label><label>STICKER <select value={arSettings.sticker} onChange={(e) => setArSettings(v => ({...v, sticker:e.target.value as FaceARSettings["sticker"]}))}><option value="none">Tắt</option><option value="hearts">Hearts</option><option value="sunglasses">Sunglasses</option><option value="sparkles">Sparkles</option></select></label><label>ÁNH SÁNG <select value={arSettings.light} onChange={(e) => setArSettings(v => ({...v, light:e.target.value as FaceARSettings["light"]}))}><option value="none">Tắt</option><option value="soft">Soft</option><option value="golden">Golden</option><option value="studio">Studio</option></select></label></div>
+                <div className="tw-ar-tools"><label>SON <select aria-label="Màu son" value={arSettings.lipstick} onChange={(e) => setArSettings(v => ({...v, lipstick:e.target.value}))}><option value="none">Tắt</option><option value="rgba(190,48,83,.9)">Đỏ cherry</option><option value="rgba(190,95,105,.9)">Hồng đất</option><option value="rgba(145,70,105,.9)">Mận</option><option value="rgba(210,70,105,.85)">Đỏ ruby</option><option value="rgba(160,85,72,.82)">Cam đất</option><option value="rgba(225,115,145,.72)">Hồng đào</option></select></label><label>MÁ HỒNG <select aria-label="Màu má hồng" value={arSettings.blush} onChange={(e) => setArSettings(v => ({...v, blush:e.target.value}))}><option value="none">Tắt</option><option value="rgba(238,105,135,.8)">Rose</option><option value="rgba(240,150,105,.8)">Peach</option><option value="rgba(205,105,145,.75)">Berry</option><option value="rgba(245,180,165,.7)">Baby Pink</option></select></label><label><input type="checkbox" checked={arSettings.eyeliner} onChange={(e) => setArSettings(v => ({...v, eyeliner:e.target.checked}))}/> Eyeliner</label><label><input type="checkbox" checked={Boolean(arSettings.eyelash)} onChange={(e) => setArSettings(v => ({...v, eyelash:e.target.checked}))}/> Mi cong</label><label><input type="checkbox" checked={Boolean(arSettings.highlight)} onChange={(e) => setArSettings(v => ({...v, highlight:e.target.checked}))}/> Highlight</label><label>TÓC <select aria-label="Màu tóc" value={arSettings.hairTint} onChange={(e) => setArSettings(v => ({...v, hairTint:e.target.value}))}><option value="none">Tự nhiên</option><option value="#8b4d2d">Nâu socola</option><option value="#c69a45">Vàng mật ong</option><option value="#7b477e">Tím khói</option><option value="#b45c72">Hồng trà</option><option value="#354d73">Xanh đen</option><option value="#a4a0a0">Bạc khói</option></select></label><label>STICKER <select aria-label="Hiệu ứng sticker" value={arSettings.sticker} onChange={(e) => setArSettings(v => ({...v, sticker:e.target.value as FaceARSettings["sticker"]}))}><option value="none">Tắt</option><option value="hearts">Trái tim</option><option value="sunglasses">Kính</option><option value="sparkles">Lấp lánh</option><option value="bunny">Tai thỏ</option><option value="cat">Mèo</option><option value="crown">Vương miện</option><option value="butterfly">Bướm</option></select></label><label>ÁNH SÁNG <select value={arSettings.light} onChange={(e) => setArSettings(v => ({...v, light:e.target.value as FaceARSettings["light"]}))}><option value="none">Tắt</option><option value="soft">Soft</option><option value="golden">Golden</option><option value="studio">Studio</option></select></label></div>
                 <div className="tw-save-settings-row">
                   <button type="button" className="tw-save-settings-button" onClick={saveARPreset}>💾 Lưu cài đặt làm đẹp</button>
                   {savedPresets.length > 0 && <div className="tw-saved-presets" aria-label="Cài đặt đã lưu">{savedPresets.map((item) => <button type="button" key={item.name} onClick={() => applySavedPreset(item)}>↩ {item.name}</button>)}</div>}
@@ -553,12 +576,19 @@ export function THU365WebApp() {
                 <div className="tw-preset-strip" aria-label="Chọn hiệu ứng làm đẹp">{BEAUTY_PRESETS.map((item) => <button key={item.id} type="button" className={`tw-preset ${preset === item.id ? "is-active" : ""}`} onClick={() => setPreset(item.id)} aria-pressed={preset === item.id}><span className={`tw-preset-swatch swatch-${item.id}`} /><small>{item.name}</small></button>)}</div>
                 <input aria-label="Cường độ làm đẹp" type="range" min="0" max="100" value={beauty} onChange={(event) => setBeauty(Number(event.target.value))} />
               </div>
+              <div className="tw-capture-modes" role="group" aria-label="Chế độ chụp và quay">
+                <button type="button" className={mode === "video" && videoLimitSeconds === 600 ? "is-active" : ""} onClick={() => { setMode("video"); setShortVideoMode(true); setVideoLimitSeconds(600); }}>10 phút</button>
+                <button type="button" className={mode === "video" && videoLimitSeconds === 60 ? "is-active" : ""} onClick={() => { setMode("video"); setShortVideoMode(true); setVideoLimitSeconds(60); }}>60s</button>
+                <button type="button" className={mode === "video" && videoLimitSeconds === 15 ? "is-active" : ""} onClick={() => { setMode("video"); setShortVideoMode(true); setVideoLimitSeconds(15); }}>15s</button>
+                <button type="button" className={mode === "image" ? "is-active" : ""} onClick={() => { setMode("image"); setShortVideoMode(false); }}>ẢNH</button>
+                <button type="button" className="tw-text-mode" onClick={() => showNotice("Chế độ Văn bản đang được phát triển")}>VĂN BẢN</button>
+              </div>
               <div className="tw-capture-row">
                 <button className="tw-side-button" onClick={() => fileRef.current?.click()}><ImageIcon size={21} /><small>Thư viện</small></button>
                 <button className={`tw-shutter ${recording ? "tw-recording" : ""}`} onClick={() => mode === "image" ? capturePhoto() : recording ? stopRecording() : setMicGuide(true)} aria-label={recording ? "Dừng quay" : mode === "image" ? "Chụp ảnh" : "Bắt đầu quay"}><span /></button>
                 <button className="tw-side-button" onClick={() => setMode(mode === "image" ? "video" : "image")}><Video size={21} /><small>{mode === "image" ? "Chế độ ảnh" : "Chế độ video"}</small></button>
               </div>
-              <div className="tw-mode-label">{mode === "image" ? "CHỤP ẢNH" : recording ? `ĐANG QUAY · ${recordingSeconds}s${shortVideoMode ? " / 60s" : ""} · CHẠM ĐỂ DỪNG` : shortVideoMode ? "VIDEO NGẮN · TỐI ĐA 60 GIÂY" : "QUAY VIDEO"}</div>
+              <div className="tw-mode-label">{mode === "image" ? "CHỤP ẢNH" : recording ? `ĐANG QUAY · ${recordingSeconds}s${shortVideoMode ? " / " + (videoLimitSeconds === 600 ? "10 phút" : videoLimitSeconds + "s") : ""} · CHẠM ĐỂ DỪNG` : shortVideoMode ? "VIDEO · TỐI ĐA " + (videoLimitSeconds === 600 ? "10 PHÚT" : videoLimitSeconds + " GIÂY") : "QUAY VIDEO"}</div>
             </div>
           </div>
           {error && <div className="tw-error" role="alert">{error}</div>}
@@ -628,19 +658,21 @@ export function THU365WebApp() {
         .tw-permission-item>span{color:#d7a99d;font-size:8px;letter-spacing:.08em}.tw-permission-actions{position:absolute;bottom:max(25px,env(safe-area-inset-bottom));left:22px;right:22px}
         .tw-primary{width:100%;min-height:49px;display:flex;align-items:center;justify-content:center;gap:9px;border:0;border-radius:13px;background:#e5b6aa;color:#211715;font-size:12px;font-weight:700}
         .tw-secondary{width:100%;min-height:42px;border:0;background:transparent;color:#c9b9b3;font-size:11px}
+        .tw-camera-screen{min-height:100dvh;background:#050505;overflow:hidden}.tw-camera-title-pill{display:flex;align-items:center;gap:8px;padding:10px 17px;border:1px solid #ffffff12;border-radius:99px;background:#1b1b1ddd;color:#fff;font-size:12px;font-weight:700;letter-spacing:.02em;backdrop-filter:blur(16px)}.tw-camera-title-pill svg{color:#e9b6a8}.tw-camera-rail{position:absolute;z-index:4;right:12px;top:22%;display:flex;flex-direction:column;gap:17px;align-items:center}.tw-camera-rail button{display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:transparent;color:#fff;text-shadow:0 1px 8px #000;font-size:9px}.tw-camera-rail small{font-size:8px;font-weight:600}
         .tw-camera-screen{min-height:100dvh;background:#090909}.tw-camera-view{height:100dvh;min-height:560px;position:relative;overflow:hidden;background:#161313}
         .tw-live-video,.tw-ar-canvas{width:100%;height:100%;position:absolute;inset:0;object-fit:cover;background:#161313}.tw-ar-canvas{pointer-events:none}.tw-beauty-tabs{display:flex;align-items:center;gap:7px;margin-bottom:9px}.tw-beauty-tabs button,.tw-auto-profiles button,.tw-manual-head button{border:1px solid #ffffff24;border-radius:9px;background:#211c1b;color:#cbbab4;padding:8px 10px;font-size:9px}.tw-beauty-tabs button.is-active,.tw-auto-profiles button.is-active{background:#e5b6aa;color:#211715;border-color:#e5b6aa}.tw-beauty-tabs b{margin-left:auto;color:#e5b6aa;font-size:11px}.tw-auto-beauty p{font-size:9px;color:#b8aaa4;margin:4px 0 8px}.tw-auto-profiles{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px}.tw-auto-apply{width:100%;padding:9px;border:1px solid #e5b6aa66;border-radius:9px;background:#e5b6aa;color:#211715;font-weight:700;font-size:10px}.tw-manual-beauty{padding:8px 0}.tw-manual-head{display:flex;justify-content:space-between;align-items:center;color:#e5b6aa;font-size:9px}.tw-manual-beauty label{display:grid;grid-template-columns:1fr auto;gap:7px;margin-top:9px;color:#d8c9c2;font-size:9px}.tw-manual-beauty input{grid-column:1/2;width:100%;accent-color:#e5b6aa}.tw-manual-beauty small{grid-column:2;grid-row:1/3;align-self:center}.tw-ar-tools{display:flex;gap:8px;overflow-x:auto;padding:0 0 10px;align-items:center}.tw-ar-tools label{display:flex;align-items:center;gap:4px;white-space:nowrap;color:#d8c9c2;font-size:8px}.tw-ar-tools select,.tw-ar-tools button{border:1px solid #ffffff30;border-radius:8px;background:#211c1b;color:#f6f0ec;padding:6px;font-size:9px}.tw-ar-tools button.tw-save-beauty{flex:0 0 auto;border-color:#e5b6aa;background:#e5b6aa;color:#211715;font-weight:800;padding:8px 11px}.tw-ar-tools input{accent-color:#e5b6aa}.tw-save-settings-row{display:grid;gap:8px;margin:3px 0 11px}.tw-save-settings-button{width:100%;min-height:39px;border:1px solid #e5b6aa;border-radius:10px;background:#e5b6aa;color:#211715;font-size:11px;font-weight:800}.tw-saved-presets{display:flex;gap:7px;overflow-x:auto;padding-bottom:3px}.tw-saved-presets button{flex:0 0 auto;border:1px solid #ffffff30;border-radius:8px;background:#211c1b;color:#f6f0ec;padding:7px 9px;font-size:9px}
         .tw-live-shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,#0009,transparent 23%,transparent 54%,#000b 100%)}
         .tw-camera-header{position:absolute;z-index:2;top:max(16px,env(safe-area-inset-top));left:18px;right:18px;display:flex;align-items:center;justify-content:space-between}
         .tw-live-label{position:absolute;top:80px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid #ffffff24;border-radius:99px;background:#17131399;color:#f5e9e4;font-size:9px;letter-spacing:.1em;white-space:nowrap}
         .tw-live-label span{width:6px;height:6px;border-radius:50%;background:#d6a398;box-shadow:0 0 0 3px #d6a39830}.tw-ai-retry{position:absolute;z-index:3;top:119px;left:50%;transform:translateX(-50%);padding:7px 12px;border:1px solid #e5b6aa66;border-radius:99px;background:#211918;color:#f2c9bd;font-size:10px}
-        .tw-camera-bottom{position:absolute;left:0;right:0;bottom:max(22px,env(safe-area-inset-bottom));padding:0 24px}
-        .tw-filter-row{padding:12px 14px;margin-bottom:23px;border:1px solid #ffffff1b;border-radius:14px;background:#161313c9;backdrop-filter:blur(15px)}
+        .tw-camera-bottom{position:absolute;z-index:3;left:0;right:0;bottom:max(12px,env(safe-area-inset-bottom));padding:0 14px}.tw-filter-row{max-height:36dvh;overflow-y:auto;padding:10px 11px;margin-bottom:10px;border:1px solid #ffffff20;border-radius:19px;background:linear-gradient(145deg,#171313df,#080808e8);backdrop-filter:blur(20px);box-shadow:0 12px 36px #0008;scrollbar-width:none}.tw-filter-row::-webkit-scrollbar{display:none}
         .tw-filter-row>div{display:flex;justify-content:space-between;margin-bottom:10px;color:#c7b9b3;font-size:8px;letter-spacing:.1em}.tw-filter-row b{color:#e5b6aa;font-size:10px}
         .tw-filter-row input{width:100%;accent-color:#e5b6aa}
         .tw-preset-strip{display:flex;gap:9px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.tw-preset-strip::-webkit-scrollbar{display:none}
         .tw-preset{flex:0 0 58px;display:flex;flex-direction:column;align-items:center;gap:6px;border:0;background:transparent;color:#cfc4bf;padding:3px 0;font-size:8px}.tw-preset small{font-size:8px;white-space:nowrap}.tw-preset-swatch{width:43px;height:43px;border:2px solid #ffffff40;border-radius:50%;background:linear-gradient(145deg,#f1c7b7,#9b655e 48%,#30211f);box-shadow:inset 0 0 0 2px #171313}.tw-preset.is-active .tw-preset-swatch{border-color:#e5b6aa;box-shadow:0 0 0 2px #e5b6aa55}.tw-preset.is-active small{color:#f2c9bd;font-weight:700}.swatch-glass{filter:brightness(1.3) saturate(.8)}.swatch-soft{filter:sepia(.2) saturate(1.3)}.swatch-rose{filter:hue-rotate(330deg)}.swatch-latte{filter:sepia(.6)}.swatch-cool{filter:hue-rotate(25deg)}.swatch-film{filter:grayscale(.25) sepia(.3)}.swatch-glow{filter:brightness(1.3) sepia(.2)}.swatch-mono{filter:grayscale(1) contrast(1.2)}
-        .tw-capture-row{display:flex;align-items:center;justify-content:space-between}.tw-side-button{display:flex;flex-direction:column;align-items:center;gap:7px;width:66px;border:0;background:transparent;color:#f6f0ec}
+        .tw-capture-modes{display:flex;align-items:center;justify-content:center;gap:clamp(10px,3vw,22px);margin:0 0 12px;white-space:nowrap}.tw-capture-modes button{border:0;border-radius:99px;padding:8px 11px;background:transparent;color:#fff;font-size:clamp(10px,2.8vw,13px);font-weight:700}.tw-capture-modes button.is-active{background:#fff;color:#161313}.tw-capture-modes .tw-text-mode{opacity:.82}
+        .tw-capture-row{display:flex;align-items:center;justify-content:space-between;padding:0 8px}.tw-shutter{width:78px;height:78px;background:#ffffff20;box-shadow:0 0 0 4px #0005}.tw-shutter span{width:62px;height:62px}.tw-side-button{width:58px}
+.tw-side-button{display:flex;flex-direction:column;align-items:center;gap:7px;width:66px;border:0;background:transparent;color:#f6f0ec}
         .tw-side-button small{font-size:9px;color:#c4b8b2}.tw-shutter{width:76px;height:76px;display:grid;place-items:center;border:3px solid #fff;border-radius:50%;background:#ffffff26}
         .tw-shutter span{width:58px;height:58px;border-radius:50%;background:#f6f0ec}.tw-shutter.tw-recording span{width:25px;height:25px;border-radius:6px;background:#d86e63}
         .tw-mode-label{text-align:center;margin-top:13px;color:#e9c8bd;font-size:9px;font-weight:700;letter-spacing:.14em}
