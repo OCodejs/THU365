@@ -15,7 +15,7 @@ type AIModelPack = {id:string;name:string;version:string;url:string;description:
 const AI_MODEL_CACHE = "anhthu-ai-models-v1";
 const AI_MODEL_PACKS: AIModelPack[] = [
  {id:"face",name:"Face Landmarker",version:"MediaPipe · float16 v1",url:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",description:"Theo dõi landmark mắt, mũi, môi và đường viền khuôn mặt.",sizeLabel:"Dung lượng đo khi tải",required:true},
- {id:"skin",name:"Skin Segmentation",version:"MediaPipe · multiclass 256",url:"https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite",description:"Phân vùng da để làm mịn theo vùng, giảm tác động lên tóc và nền.",sizeLabel:"Dung lượng đo khi tải",required:false}
+ {id:"skin",name:"Skin Segmentation",version:"MediaPipe · multiclass 256",url:"https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite",description:"Phân vùng da và tóc để làm mịn theo vùng, áp màu tóc chính xác hơn.",sizeLabel:"Dung lượng đo khi tải",required:true}
 ];
 const BEAUTY_REFERENCES: BeautyReference[] = [
   {id:"cn-male-clean",name:"C-Drama nam · Thanh lịch",subtitle:"Nam · ánh sáng studio",gender:"Nam",image:"https://images.pexels.com/photos/35514244/pexels-photo-35514244/free-photo-of-dramatic-studio-portrait-of-young-asian-male-model.jpeg?auto=compress&cs=tinysrgb&w=720",preset:"cool",beauty:38,settings:{smooth:32,lipstick:"none",blush:"none",eyeliner:false,hairTint:"none",sticker:"none",light:"studio"},description:"Da tự nhiên, tương phản nhẹ, ánh sáng điện ảnh"},
@@ -134,12 +134,26 @@ export function THU365WebApp() {
         return cause instanceof DOMException && cause.name === "AbortError" ? "Hết thời gian chờ 9 giây" : "Không xác minh được · có thể do mạng hoặc CORS";
       } finally { window.clearTimeout(timer); }
     };
-    const [runtimeResult, faceModel, skinModel] = await Promise.all([
+    const [runtimeResult, faceReachable, skinReachable] = await Promise.all([
       Promise.resolve(runtime),
       probe("https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"),
       probe("https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite")
     ]);
-    setAiDiagnostics({ network, secure, camera, runtime: runtimeResult, faceModel, skinModel });
+    const installedStatus = async (model:AIModelPack, reachable:string) => {
+      try {
+        if (!("caches" in window)) return "Cache Storage không khả dụng · "+reachable;
+        const cache = await caches.open(AI_MODEL_CACHE);
+        const response = await cache.match(model.url);
+        if (!response) return "CHƯA CÀI · "+reachable;
+        const blob = await response.blob();
+        return blob.size ? "ĐÃ TẢI VÀ LƯU TRÊN THIẾT BỊ · "+(blob.size/1048576).toFixed(2)+" MB" : "TỆP MODEL RỖNG · cần tải lại";
+      } catch { return "KHÔNG ĐỌC ĐƯỢC BỘ NHỚ · "+reachable; }
+    };
+    const [faceModel, skinModel] = await Promise.all([
+      installedStatus(AI_MODEL_PACKS[0],faceReachable),
+      installedStatus(AI_MODEL_PACKS[1],skinReachable)
+    ]);
+    setAiDiagnostics({ network, secure, camera, runtime: runtimeResult+" · MediaPipe JS/WASM tải từ CDN khi khởi tạo AI", faceModel, skinModel });
     setCheckingAI(false);
   }
 
@@ -182,8 +196,11 @@ export function THU365WebApp() {
   }
 
   useEffect(() => {
-    setIsStandalone(window.matchMedia?.("(display-mode: standalone)").matches || (navigator as any).standalone === true);
+    const standalone = window.matchMedia?.("(display-mode: standalone)").matches || (navigator as any).standalone === true;
+    setIsStandalone(Boolean(standalone));
+    void refreshAIModelInventory();
     if (activeModule === "settings") void refreshDevicePermissions();
+    if (activeModule === "ai-models") void refreshAIModelInventory();
   }, [activeModule]);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -356,6 +373,41 @@ export function THU365WebApp() {
   async function startCamera(nextFacing = facing) {
     setError("");
     setCameraPlaybackBlocked(false);
+    const standalone = window.matchMedia?.("(display-mode: standalone)").matches || (navigator as any).standalone === true;
+    setIsStandalone(Boolean(standalone));
+    if (!standalone) {
+      setActiveModule("setup");
+      setScreen("module");
+      showNotice("Bắt buộc cài AnhThu vào Màn hình chính trước khi mở camera.");
+      return;
+    }
+    if (!("caches" in window)) {
+      setActiveModule("ai-models");
+      setScreen("module");
+      showNotice("Thiết bị không hỗ trợ lưu model AI. Cần trình duyệt tương thích.");
+      return;
+    }
+    try {
+      const cache = await caches.open(AI_MODEL_CACHE);
+      const missing:AIModelPack[] = [];
+      for (const model of AI_MODEL_PACKS.filter(item => item.required)) {
+        const response = await cache.match(model.url);
+        const blob = response ? await response.blob() : null;
+        if (!blob?.size) missing.push(model);
+      }
+      if (missing.length) {
+        await refreshAIModelInventory();
+        setActiveModule("ai-models");
+        setScreen("module");
+        showNotice("Cần tải và cài đủ "+missing.map(item=>item.name).join(" + ")+" trước khi bật camera.");
+        return;
+      }
+    } catch {
+      setActiveModule("ai-models");
+      setScreen("module");
+      showNotice("Không thể kiểm tra bộ nhớ model AI. Mở lại AI Model Center.");
+      return;
+    }
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
       setError("Camera cần Safari/Chrome hiện đại và kết nối HTTPS. Hãy mở AnhThu bằng Safari.");
       return;
@@ -640,6 +692,7 @@ export function THU365WebApp() {
             <nav className="tw-nav-drawer" aria-label="Điều hướng chính">
               <div className="tw-nav-heading"><div className="tw-brand"><img src="/thu365/app-icon.svg" alt=""/>Anh<span>Thu</span></div><button onClick={() => setHomeMenuOpen(false)} aria-label="Đóng menu"><X size={22}/></button></div>
               <div className="tw-nav-caption">KHÔNG GIAN SÁNG TẠO</div>
+              <button className="tw-nav-feature" onClick={() => { setHomeMenuOpen(false); setActiveModule("setup"); setScreen("module"); }}><ShieldCheck/><span><b>Thiết lập ứng dụng</b><small>Cài app · tải AI · cấp quyền</small></span><ChevronRight/></button>
               <button className="tw-nav-feature" onClick={() => { setHomeMenuOpen(false); setShortVideoMode(false); setMode("image"); setError(""); setScreen("permission"); }}><Camera/><span><b>Camera làm đẹp</b><small>Chụp ảnh · quay video · AR</small></span><ChevronRight/></button>
               <div className="tw-nav-grid">
                 <button onClick={() => {setHomeMenuOpen(false);setActiveModule("album");setScreen("module");}}><ImageIcon/><b>Album</b></button>
@@ -716,9 +769,29 @@ export function THU365WebApp() {
         <section className="tw-module-screen">
           <header className="tw-preview-header">
             <button className="tw-back" onClick={() => setScreen("home")} aria-label="Quay lại"><ArrowLeft size={19}/></button>
-            <div><b>{activeModule === "ai-models" ? "Tải AI Models" : activeModule === "docs" ? "Docs · Beauty Skills" : activeModule === "settings" ? "Cài đặt ứng dụng" : activeModule === "profile" ? "Hồ sơ của tôi" : activeModule === "album" ? "Album của tôi" : activeModule === "editor" ? "Chỉnh sửa ảnh" : activeModule === "sharp" ? "Làm nét ảnh AI" : activeModule === "beauty" ? "AI làm đẹp" : activeModule === "short-video" ? "Video ngắn" : "Hiệu ứng quốc tế"}</b><small>ANHTHU · KHÔNG GIAN RIÊNG TƯ</small></div>
+            <div><b>{activeModule === "setup" ? "Thiết lập bắt buộc" : activeModule === "ai-models" ? "Tải AI Models" : activeModule === "docs" ? "Docs · Beauty Skills" : activeModule === "settings" ? "Cài đặt ứng dụng" : activeModule === "profile" ? "Hồ sơ của tôi" : activeModule === "album" ? "Album của tôi" : activeModule === "editor" ? "Chỉnh sửa ảnh" : activeModule === "sharp" ? "Làm nét ảnh AI" : activeModule === "beauty" ? "AI làm đẹp" : activeModule === "short-video" ? "Video ngắn" : "Hiệu ứng quốc tế"}</b><small>ANHTHU · KHÔNG GIAN RIÊNG TƯ</small></div>
           </header>
-          {activeModule === "ai-models" ? (
+          {activeModule === "setup" ? (
+            <div className="tw-ai-model-center">
+              <div className="tw-ai-model-hero"><span><ShieldCheck size={26}/></span><div><b>Quy trình cài đặt bắt buộc</b><p>Camera chỉ mở sau khi AnhThu được cài vào Màn hình chính và hai model AI cốt lõi đã tải, lưu thành công trên thiết bị.</p></div></div>
+              <article className="tw-ai-model-card">
+                <div className="tw-ai-model-card-top"><span className="tw-ai-model-icon"><Download size={21}/></span><div><b>Bước 1 · Cài ứng dụng AnhThu</b><small>{isStandalone ? "Đã chạy ở chế độ ứng dụng" : "Chưa cài · cần thêm vào Màn hình chính"}</small></div><span className={isStandalone?"tw-ai-model-installed":"tw-ai-model-cloud"}>{isStandalone?<Check size={14}/>:<Wifi size={14}/>}</span></div>
+                <p>iPhone: mở bằng Safari → Chia sẻ → Thêm vào Màn hình chính → Thêm. Sau đó mở AnhThu từ icon vừa tạo. Android: dùng menu trình duyệt → Cài đặt ứng dụng / Add to Home screen.</p>
+                <button className="tw-suite-primary" onClick={()=>{const installed=window.matchMedia?.("(display-mode: standalone)").matches||(navigator as any).standalone===true;setIsStandalone(Boolean(installed));showNotice(installed?"Đã xác nhận ứng dụng đang chạy độc lập.":"Chưa phát hiện ứng dụng đã cài. Hãy hoàn tất bước Thêm vào Màn hình chính.");}}>Kiểm tra trạng thái cài ứng dụng</button>
+              </article>
+              <article className="tw-ai-model-card">
+                <div className="tw-ai-model-card-top"><span className="tw-ai-model-icon"><BrainCircuit size={21}/></span><div><b>Bước 2 · Tải và cài AI</b><small>Face Landmarker + Skin Segmentation · bắt buộc</small></div><span className="tw-ai-model-cloud"><Cpu size={14}/></span></div>
+                <p>Hai model được tải và lưu trong Cache Storage riêng của ứng dụng. MediaPipe JavaScript runtime và WASM được tải tự động từ CDN khi khởi chạy AI; cần internet ở lần khởi tạo và không được tính là đã cài offline.</p>
+                <button className="tw-suite-primary" onClick={()=>{setActiveModule("ai-models");void refreshAIModelInventory();}}>Mở AI Model Center <ChevronRight size={15}/></button>
+              </article>
+              <article className="tw-ai-model-card">
+                <div className="tw-ai-model-card-top"><span className="tw-ai-model-icon"><Camera size={21}/></span><div><b>Bước 3 · Cấp quyền thiết bị</b><small>Camera bắt buộc · Microphone khi quay video có tiếng</small></div></div>
+                <p>iOS/Safari sẽ hiện hộp thoại xin quyền. Người dùng phải tự chạm Cho phép; ứng dụng web không thể tự cấp quyền thay người dùng.</p>
+              </article>
+              <div className="tw-ai-model-note tw-ai-model-warning"><Wifi size={16}/><p><b>Điều kiện:</b> dùng HTTPS, trình duyệt hỗ trợ WebAssembly, WebGL/GPU hoặc CPU fallback, Cache Storage và có mạng khi tải runtime/WASM.</p></div>
+              <button className="tw-secondary" onClick={()=>{setActiveModule("ai-models");void refreshAIModelInventory();}}>Tiếp tục cài AI Models</button>
+            </div>
+          ) : activeModule === "ai-models" ? (
             <div className="tw-ai-model-center">
               <div className="tw-ai-model-hero"><span><BrainCircuit size={26}/></span><div><b>AI Model Center</b><p>Tải, quản lý và xóa các mô hình AI dùng cho camera làm đẹp. Model được lưu trong bộ nhớ trình duyệt trên thiết bị này.</p></div></div>
               <div className="tw-ai-model-summary"><div><b>{Object.values(aiModelStates).filter(x=>x.installed).length}/{AI_MODEL_PACKS.length}</b><small>Model đã cài</small></div><div><b>{(Object.values(aiModelStates).reduce((n,x)=>n+x.bytes,0)/1048576).toFixed(1)} MB</b><small>Dung lượng đã lưu</small></div><button onClick={()=>void refreshAIModelInventory()}><RotateCcw size={14}/> Làm mới</button></div>
@@ -729,7 +802,8 @@ export function THU365WebApp() {
                 <div className="tw-ai-model-actions">{state.installed?<><button className="tw-suite-primary" onClick={()=>void refreshAIModelInventory()}><Check size={14}/> Đã cài đặt</button><button className="tw-ai-remove" onClick={()=>void removeAIModel(model)}><Trash2 size={14}/> Xóa</button></>:<button className="tw-suite-primary" disabled={state.downloading||aiModelBusy} onClick={()=>void downloadAIModel(model)}><Download size={14}/>{state.downloading?"Đang tải…":"Tải model về máy"}</button>}</div>
               </article>;})}</div>
               <div className="tw-ai-model-note"><ShieldCheck size={16}/><p><b>Riêng tư:</b> model được lưu trong Cache Storage trên thiết bị. Ảnh/video không được tải lên máy chủ.</p></div>
-              <div className="tw-ai-model-note tw-ai-model-warning"><Wifi size={16}/><p><b>Lưu ý:</b> MediaPipe runtime và WASM vẫn cần tải riêng. Model đã lưu không đồng nghĩa toàn bộ ứng dụng chạy offline. Mở lại camera để tracker nạp model từ cache.</p></div>
+              <div className="tw-ai-model-note tw-ai-model-warning"><Wifi size={16}/><p><b>Thành phần ứng dụng:</b> Face Landmarker và Skin Segmentation phải được tải vào Cache Storage; MediaPipe JS runtime + WASM tải tự động từ CDN khi mở camera. Vì runtime/WASM chưa được đóng gói offline, kết nối internet vẫn bắt buộc khi khởi tạo AI.</p></div>
+              <button className="tw-secondary" onClick={()=>{const standalone=window.matchMedia?.("(display-mode: standalone)").matches||(navigator as any).standalone===true;if(!standalone){setActiveModule("setup");showNotice("Cần cài AnhThu vào Màn hình chính trước.");return;}void startCamera();}}>Kiểm tra cài đặt và mở camera</button>
               <button className="tw-secondary" onClick={()=>{setActiveModule("settings");setScreen("module");}}>Mở chẩn đoán mạng & AI</button>
             </div>
           ) : activeModule === "docs" ? (
@@ -876,7 +950,7 @@ export function THU365WebApp() {
                   <div><span>Skin Segmentation model</span><b>{aiDiagnostics.skinModel}</b></div>
                 </div> : <p className="tw-permission-help">Chưa chạy kiểm tra. Khi Face AI không tải được, hãy kiểm tra mạng và hai model ở đây.</p>}
                 <button className="tw-secondary tw-ai-retry" onClick={() => { if (streamRef.current) { setAiRetry((value) => value + 1); setScreen("camera"); } else { void startCamera(); } }}>Mở camera & tải lại AI</button>
-                <small className="tw-ai-note">Kiểm tra HEAD chỉ xác minh khả năng kết nối máy chủ; không chứng minh model đã tải hoặc nhận diện khuôn mặt thành công. Model thật được khởi tạo khi mở camera.</small>
+                <small className="tw-ai-note">Trạng thái model được đọc trực tiếp từ Cache Storage trên thiết bị hiện tại. Kết nối được máy chủ không đồng nghĩa model đã tải; AI chỉ được xác nhận sẵn sàng sau khi Face Landmarker và Skin Segmentation khởi tạo thành công trong camera.</small>
               </div>
               <div className="tw-device-install"><h2>Cài đặt ứng dụng</h2><p>{isStandalone ? "AnhThu đang chạy từ màn hình chính." : "Để mở toàn màn hình như ứng dụng, hãy thêm AnhThu vào Màn hình chính."}</p><ol><li>Mở trang AnhThu bằng Safari.</li><li>Chạm nút Chia sẻ.</li><li>Chọn “Thêm vào Màn hình chính”, sau đó xác nhận.</li></ol><small>Icon THU365 sẽ được dùng khi iOS cập nhật dữ liệu PWA. Nếu icon cũ còn hiển thị, xóa shortcut cũ và thêm lại sau khi tải lại trang.</small></div>
               <div className="tw-quality-note"><b>Thiết lập quay hiện tại</b><span>Video bitrate mục tiêu: {studioSettings.video === "4k" ? "20 Mbps" : studioSettings.video === "720" ? "6 Mbps" : "12 Mbps"}</span><small>FPS và độ phân giải thực tế phụ thuộc camera, iOS, Safari và nhiệt độ thiết bị. Bitrate cao không thể khôi phục chi tiết đã mất do thiếu sáng hoặc lấy nét sai.</small></div>
