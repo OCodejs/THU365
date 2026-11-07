@@ -461,10 +461,11 @@ export function THU365WebApp() {
     try {
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: "AnhThu Beauty" });
+        setExportingEdit(false);
         return;
       }
     } catch (cause) {
-      if (cause instanceof DOMException && cause.name === "AbortError") return;
+      if (cause instanceof DOMException && cause.name === "AbortError") { setExportingEdit(false); return; }
     }
     const outputUrl = URL.createObjectURL(outputBlob);
     const downloadLink = document.createElement("a");
@@ -668,7 +669,7 @@ export function THU365WebApp() {
             <button className="tw-back" onClick={() => { if (mediaUrl) URL.revokeObjectURL(mediaUrl); setMediaUrl(""); setMediaBlob(null); setScreen("home"); }} aria-label="Đóng"><X size={18} /></button>
           </header>
           <div className="tw-media-frame">
-            {mediaType === "image" ? <img src={mediaUrl} alt="Ảnh đang chỉnh sửa" style={{filter:editFilter + ` sepia(${Math.max(0,editSettings.warmth)/500})`,transform:`rotate(${editSettings.rotation}deg)`}} /> : <video src={mediaUrl} controls playsInline style={{filter:editFilter}} />}
+            {mediaType === "image" ? <><img src={mediaUrl} alt="Ảnh đang chỉnh sửa" style={{filter:editFilter + ` sepia(${Math.max(0,editSettings.warmth)/500})`,transform:`rotate(${editSettings.rotation}deg)`}} />{editSettings.tone !== "none" && <div aria-hidden="true" style={{position:"absolute",inset:0,background:editSettings.tone,opacity:.22,mixBlendMode:"soft-light",pointerEvents:"none"}} />}</> : <video src={mediaUrl} controls playsInline style={{filter:editFilter}} />}
           </div>
           {mediaType === "image" && <section className="tw-photo-editor" aria-label="Bộ công cụ chỉnh sửa ảnh">
             <div className="tw-editor-heading"><div><b>✨ Photo Editor</b><small>Chỉnh sửa ảnh · xem trước trực tiếp</small></div><button type="button" onClick={() => setEditSettings({brightness:100,contrast:100,saturation:100,warmth:0,hue:0,vignette:0,fade:0,rotation:0,aspect:"original",tone:"none"})}>Đặt lại</button></div>
@@ -753,7 +754,7 @@ export function THU365WebApp() {
         .tw-mode-label{text-align:center;margin-top:13px;color:#e9c8bd;font-size:9px;font-weight:700;letter-spacing:.14em}
         .tw-photo-editor{border:1px solid #ffffff20;border-radius:16px;background:#171313;padding:13px;display:grid;gap:12px}.tw-editor-heading{display:flex;align-items:center;justify-content:space-between}.tw-editor-heading>div{display:grid;gap:4px}.tw-editor-heading b{font-size:13px}.tw-editor-heading small{font-size:9px;color:#aaa09c}.tw-editor-heading>button,.tw-editor-actions button{border:1px solid #ffffff25;background:#242020;color:#f6f0ec;border-radius:9px;padding:8px 10px;font-size:10px}.tw-editor-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.tw-editor-tabs button{border:1px solid #ffffff20;border-radius:9px;background:#242020;color:#c8bfbb;padding:9px 3px;font-size:10px}.tw-editor-tabs button.active{background:#e5b6aa;color:#241816;border-color:#e5b6aa;font-weight:800}.tw-editor-controls{display:grid;gap:12px}.tw-editor-controls label{display:grid;grid-template-columns:1fr auto;align-items:center;gap:7px;font-size:10px;color:#eee4df}.tw-editor-controls input{grid-column:1/-1;width:100%;accent-color:#e5b6aa}.tw-editor-controls label small{color:#e5b6aa}.tw-editor-controls select{grid-column:1/-1;width:100%;padding:10px;border-radius:9px;background:#252124;color:#fff;border:1px solid #ffffff25}.tw-tone-palette{display:flex;flex-wrap:wrap;gap:7px;align-items:center}.tw-tone-palette span{width:100%;font-size:10px;color:#b9adaa}.tw-tone-palette button{min-width:31px;height:31px;border:2px solid #ffffff30;border-radius:50%;color:#211715;font-size:9px;padding:0}.tw-tone-palette button.selected{outline:2px solid #e5b6aa;outline-offset:2px}.tw-tone-palette button[title]{font-size:0}.tw-editor-actions{display:flex;gap:8px}.tw-editor-actions button{flex:1}
         .tw-preview-screen{display:flex;flex-direction:column;gap:20px}.tw-preview-header{display:flex;align-items:center;gap:13px}.tw-preview-header>div{display:flex;flex:1;flex-direction:column;gap:4px}.tw-preview-header b{font-size:13px}.tw-preview-header small{color:#aaa09c;font-size:9px}
-        .tw-media-frame{flex:1;min-height:280px;max-height:65dvh;display:grid;place-items:center;overflow:hidden;border:1px solid #ffffff18;border-radius:18px;background:#151313}
+        .tw-media-frame{position:relative;flex:1;min-height:280px;max-height:65dvh;display:grid;place-items:center;overflow:hidden;border:1px solid #ffffff18;border-radius:18px;background:#151313}
         .tw-media-frame img,.tw-media-frame video{display:block;max-width:100%;max-height:65dvh;object-fit:contain}.tw-preview-actions{display:grid;gap:7px}
         .tw-local-note{display:flex;align-items:flex-start;gap:8px;color:#928783;font-size:9px;line-height:1.5}.tw-local-note svg{flex:0 0 auto;color:#e5b6aa}
         .tw-modal-scrim{position:fixed;z-index:80;inset:0;display:flex;align-items:flex-end;justify-content:center;background:#000a;padding:14px}
