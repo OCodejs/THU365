@@ -574,8 +574,8 @@ export function THU365WebApp() {
 
   async function beginVideoRecording() {
     setError("");
-    if (!aiReady || !arReady) {
-      setError("AI Beauty chưa sẵn sàng. Hãy chờ Face Tracking + Skin Segmentation khởi tạo xong trước khi quay.");
+    if (!arReady) {
+      setError("Khung hình hiệu ứng chưa sẵn sàng. Hãy chờ camera khởi tạo rồi thử quay lại.");
       return;
     }
     try {
