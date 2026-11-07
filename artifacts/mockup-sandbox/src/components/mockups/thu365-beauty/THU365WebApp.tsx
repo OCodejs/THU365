@@ -243,14 +243,14 @@ export function THU365WebApp() {
     autoSetupStartedRef.current=true;
     const standalone=window.matchMedia?.("(display-mode: standalone)").matches||(navigator as any).standalone===true;
     setIsStandalone(Boolean(standalone));
-    if(!standalone){setSetupStage("install");setActiveModule("setup");setScreen("module");return;}
+    if(!standalone){autoSetupStartedRef.current=false;setSetupStage("install");setActiveModule("setup");setScreen("module");return;}
     setActiveModule("setup");setScreen("module");
     setSetupStage("models");
     const modelsReady=await downloadRequiredAIModels();
-    if(!modelsReady){setSetupStage("error");return;}
+    if(!modelsReady){autoSetupStartedRef.current=false;setSetupStage("error");return;}
     setSetupStage("camera");
     const permissionGranted=await requestSetupPermissions();
-    if(!permissionGranted){setSetupStage("camera");showNotice("Cần cho phép camera để hoàn tất. Chạm nút thử lại nếu hộp thoại chưa xuất hiện.");return;}
+    if(!permissionGranted){autoSetupStartedRef.current=false;setSetupStage("camera");showNotice("Cần cho phép camera để hoàn tất. Chạm nút thử lại nếu hộp thoại chưa xuất hiện.");return;}
     setSetupStage("ready");
     localStorage.setItem("anhthu-setup-complete-v1","true");
     await startCamera();
