@@ -9,7 +9,7 @@ The installable browser app is served from /thu365/ in the mockup sandbox.
 3. Choose **Add to Home Screen**.
 4. If shown, enable **Open as Web App**, then tap **Add**.
 5. Launch THU365 from the new Home Screen icon.
-6. Allow camera access when iOS prompts. The microphone is not requested during first-run setup; it is requested only when the user starts a video recording with sound.
+6. Allow camera access when iOS prompts. The camera opens first; AI models download in the background after camera startup. The microphone is not requested during first-run setup and is requested only when the user starts a video recording with sound.
 
 ## Current browser features
 
@@ -28,8 +28,8 @@ The installable browser app is served from /thu365/ in the mockup sandbox.
 
 - Media is held in browser memory/object URLs for the current session. The app does not upload it to a server or provide cloud backup.
 - Saving/export is user initiated. On iOS, use the share sheet to choose **Save Image** or **Save to Files**.
-- Face tracking and skin segmentation require the MediaPipe JS/WASM runtime from the pinned CDN and valid model files from Google Cloud Storage. First setup requires a network connection.
-- If a model host, CORS policy, browser cache or network connection fails, the app falls back to basic camera and color-filter mode instead of blocking the camera.
+- Face tracking and skin segmentation require the MediaPipe JS/WASM runtime from the pinned CDN and valid model files from Google Cloud Storage. AI enhancement setup requires a network connection; the basic camera and color-filter fallback can still be used without downloaded AI models.
+- If a model host, CORS policy, browser cache or network connection fails, the app falls back to basic camera and color-filter mode instead of blocking the camera. Model downloads time out after 90 seconds and can be retried from AI Model Center.
 - iOS browser camera APIs require HTTPS and a compatible Safari version. Camera and microphone prompts are controlled by iOS.
 - The service worker caches the app shell and same-origin resources as they are requested. The first visit requires network access.
 - This is a PWA, not an Apple-signed IPA or App Store release.
