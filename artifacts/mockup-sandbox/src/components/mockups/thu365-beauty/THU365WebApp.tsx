@@ -712,7 +712,8 @@ export function THU365WebApp() {
       try { outputBlob = await renderEditedPhoto() || mediaBlob; }
       catch { showNotice("Không thể xuất ảnh đã chỉnh sửa. Thử lại."); setExportingEdit(false); return; }
     }
-    const file = new File([outputBlob], mediaName.replace(/\\.[^.]+$/, mediaType === "image" ? ".jpg" : ".mp4"), { type: outputBlob.type || (mediaType === "image" ? "image/jpeg" : "video/mp4") });
+    const outputExtension = mediaType === "image" ? ".jpg" : outputBlob.type.includes("webm") ? ".webm" : ".mp4";
+    const file = new File([outputBlob], mediaName.replace(/\.[^.]+$/, outputExtension), { type: outputBlob.type || (mediaType === "image" ? "image/jpeg" : "video/mp4") });
     try {
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: "AnhThu Beauty" });
