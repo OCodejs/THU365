@@ -107,6 +107,8 @@ export function THU365WebApp() {
   const [profileName, setProfileName] = useState(() => localStorage.getItem("anhthu-profile-name") || "AnhThu User");
   const [studioSettings, setStudioSettings] = useState(() => { try { return { photo: "1080", video: "1080", fps: "60", mirror: true, ...JSON.parse(localStorage.getItem("anhthu-studio-settings") || "{}") }; } catch { return { photo: "1080", video: "1080", fps: "60", mirror: true }; } });
   const [cameraQuality, setCameraQuality] = useState("Đang chờ camera");
+  const [cameraStarting, setCameraStarting] = useState(false);
+  const [cameraPlaybackBlocked, setCameraPlaybackBlocked] = useState(false);
   const [devicePermissions, setDevicePermissions] = useState({ camera: "Chưa kiểm tra", microphone: "Chưa kiểm tra" });
   const [isStandalone, setIsStandalone] = useState(false);
   const [aiDiagnostics, setAiDiagnostics] = useState<{network:string;secure:string;camera:string;runtime:string;faceModel:string;skinModel:string} | null>(null);
@@ -194,6 +196,7 @@ export function THU365WebApp() {
   beautyRef.current = beauty;
   filterRef.current = activePreset.filter;
   const streamRef = useRef<MediaStream | null>(null);
+  const cameraRequestRef = useRef(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioStreamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -202,8 +205,15 @@ export function THU365WebApp() {
 
   useEffect(() => {
     if (screen === "camera" && videoRef.current && streamRef.current) {
-      videoRef.current.srcObject = streamRef.current;
-      void videoRef.current.play().catch(() => undefined);
+      const video = videoRef.current;
+      video.muted = true;
+      video.playsInline = true;
+      video.autoplay = true;
+      video.srcObject = streamRef.current;
+      void video.play().then(() => setCameraPlaybackBlocked(false)).catch(() => {
+        setCameraPlaybackBlocked(true);
+        setError("Camera đã được cấp quyền nhưng Safari chưa phát hình. Chạm “Bật hình camera” để tiếp tục.");
+      });
     }
   }, [screen]);
 
@@ -345,12 +355,15 @@ export function THU365WebApp() {
 
   async function startCamera(nextFacing = facing) {
     setError("");
+    setCameraPlaybackBlocked(false);
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
       setError("Camera cần Safari/Chrome hiện đại và kết nối HTTPS. Hãy mở AnhThu bằng Safari.");
       return;
     }
+    if (cameraRequestRef.current) return;
+    cameraRequestRef.current = true;
+    setCameraStarting(true);
     try {
-      stopCamera();
       const requestedResolution = mode === "image" ? studioSettings.photo : studioSettings.video;
       const preferredConstraints: MediaStreamConstraints = {
         audio: false,
@@ -370,16 +383,28 @@ export function THU365WebApp() {
         // Retry with browser defaults when the requested HD/4K/FPS profile is unsupported.
         stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: nextFacing } } });
       }
+      const previousStream = streamRef.current;
       const actual = stream.getVideoTracks()[0]?.getSettings?.();
-      setCameraQuality(actual?.width && actual?.height ? String(actual.width) + "×" + String(actual.height) + (actual.frameRate ? " · " + Math.round(actual.frameRate) + " FPS" : "") : "Thiết bị tự chọn chất lượng");
+      setCameraQuality(actual?.width && actual?.height ? String(actual.width) + "×" + actual.height + (actual.frameRate ? " · " + Math.round(actual.frameRate) + " FPS" : "") : "Thiết bị tự chọn chất lượng");
       streamRef.current = stream;
       void refreshDevicePermissions();
       setFacing(nextFacing);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        void videoRef.current.play().catch(() => undefined);
-      }
       setScreen("camera");
+      if (videoRef.current) {
+        const video = videoRef.current;
+        video.muted = true;
+        video.playsInline = true;
+        video.autoplay = true;
+        video.srcObject = stream;
+        try {
+          await video.play();
+          setCameraPlaybackBlocked(false);
+        } catch {
+          setCameraPlaybackBlocked(true);
+          setError("Camera đã được cấp quyền nhưng Safari chưa phát hình. Chạm “Bật hình camera” để tiếp tục.");
+        }
+      }
+      previousStream?.getTracks().forEach((track) => track.stop());
     } catch (cause) {
       const name = cause instanceof DOMException ? cause.name : "";
       if (name === "NotAllowedError" || name === "PermissionDeniedError") {
@@ -395,6 +420,9 @@ export function THU365WebApp() {
       } else {
         setError("Không thể mở camera (" + (name || "lỗi thiết bị") + "). Kiểm tra quyền Camera trong Cài đặt iPhone rồi thử lại.");
       }
+    } finally {
+      cameraRequestRef.current = false;
+      setCameraStarting(false);
     }
   }
 
@@ -886,11 +914,12 @@ export function THU365WebApp() {
         <section className="tw-camera-screen">
           <div className="tw-camera-view">
             <video ref={videoRef} autoPlay muted playsInline className="tw-live-video" style={{ opacity: arReady ? 0 : 1, transform: facing === "user" && studioSettings.mirror ? "scaleX(-1)" : "none" }} /><canvas ref={arCanvasRef} className="tw-ar-canvas" style={{ opacity: arReady ? 1 : 0, transform: facing === "user" && studioSettings.mirror ? "scaleX(-1)" : "none" }} />
+            {cameraPlaybackBlocked && <div className="tw-camera-playback-prompt" role="alert"><b>Camera đã được cấp quyền</b><span>Safari cần thao tác chạm để phát luồng hình ảnh.</span><button type="button" onClick={() => {const video=videoRef.current;if(!video)return;void video.play().then(()=>{setCameraPlaybackBlocked(false);setError("");}).catch(()=>setError("Safari vẫn chưa phát được camera. Hãy kiểm tra quyền Camera và tải lại trang."));}}>Bật hình camera</button></div>}
             <div className="tw-live-shade" />
             <header className="tw-camera-header">
               <button className="tw-glass" onClick={returnHome} aria-label="Đóng camera"><X size={21} /></button>
               <div className="tw-camera-title-pill"><Sparkles size={14} /> AnhThu Beauty Studio</div>
-              <button className="tw-glass" onClick={() => void startCamera(facing === "user" ? "environment" : "user")} aria-label="Đổi camera"><FlipHorizontal2 size={20} /></button>
+              <button className="tw-glass" disabled={cameraStarting} onClick={() => void startCamera(facing === "user" ? "environment" : "user")} aria-label="Đổi camera"><FlipHorizontal2 size={20} /></button>
             </header>
             <aside className="tw-camera-rail" aria-label="Công cụ camera">
               <button type="button" onClick={() => { if (!beautyPanelOpen) { setBeautyPanelOpen(true); setBeautyPanel("manual"); } else { setBeautyPanelOpen(false); } }} aria-expanded={beautyPanelOpen} aria-label={beautyPanelOpen ? "Thu gọn bảng làm đẹp" : "Mở bảng làm đẹp"}><Sparkles size={19}/><small>Beauty</small></button>
@@ -1027,7 +1056,7 @@ export function THU365WebApp() {
         .tw-primary{width:100%;min-height:49px;display:flex;align-items:center;justify-content:center;gap:9px;border:0;border-radius:13px;background:#e5b6aa;color:#211715;font-size:12px;font-weight:700}
         .tw-secondary{width:100%;min-height:42px;border:0;background:transparent;color:#c9b9b3;font-size:11px}
         .tw-camera-screen{min-height:100dvh;background:#050505;overflow:hidden}.tw-camera-title-pill{display:flex;align-items:center;gap:8px;padding:10px 17px;border:1px solid #ffffff12;border-radius:99px;background:#1b1b1ddd;color:#fff;font-size:12px;font-weight:700;letter-spacing:.02em;backdrop-filter:blur(16px)}.tw-camera-title-pill svg{color:#e9b6a8}.tw-camera-rail{position:absolute;z-index:4;right:12px;top:22%;display:flex;flex-direction:column;gap:17px;align-items:center}.tw-camera-rail button{display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:transparent;color:#fff;text-shadow:0 1px 8px #000;font-size:9px}.tw-camera-rail small{font-size:8px;font-weight:600}
-        .tw-camera-screen{min-height:100dvh;background:#090909}.tw-camera-view{height:100dvh;min-height:560px;position:relative;overflow:hidden;background:#161313}
+        .tw-camera-screen{min-height:100dvh;background:#090909}.tw-camera-playback-prompt{position:absolute;z-index:8;left:50%;top:42%;transform:translate(-50%,-50%);width:min(86%,340px);display:grid;gap:10px;padding:18px;border:1px solid #e5b6aa66;border-radius:16px;background:#171313ee;color:#fff;text-align:center;box-shadow:0 16px 48px #0009}.tw-camera-playback-prompt span{color:#d4c5bf;font-size:12px;line-height:1.5}.tw-camera-playback-prompt button{min-height:42px;border:0;border-radius:10px;background:#e5b6aa;color:#211715;font-weight:800}.tw-camera-view{height:100dvh;min-height:560px;position:relative;overflow:hidden;background:#161313}
         .tw-live-video,.tw-ar-canvas{width:100%;height:100%;position:absolute;inset:0;object-fit:cover;background:#161313}.tw-ar-canvas{pointer-events:none}.tw-beauty-tabs{display:flex;align-items:center;gap:7px;margin-bottom:9px}.tw-beauty-tabs button,.tw-auto-profiles button,.tw-manual-head button{border:1px solid #ffffff24;border-radius:9px;background:#211c1b;color:#cbbab4;padding:8px 10px;font-size:9px}.tw-beauty-tabs button.is-active,.tw-auto-profiles button.is-active{background:#e5b6aa;color:#211715;border-color:#e5b6aa}.tw-beauty-tabs b{margin-left:auto;color:#e5b6aa;font-size:11px}.tw-auto-beauty p{font-size:9px;color:#b8aaa4;margin:4px 0 8px}.tw-auto-profiles{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px}.tw-auto-apply{width:100%;padding:9px;border:1px solid #e5b6aa66;border-radius:9px;background:#e5b6aa;color:#211715;font-weight:700;font-size:10px}.tw-manual-beauty{padding:8px 0}.tw-beauty-category-tabs{display:flex;gap:7px;margin:9px 0 10px;border-bottom:1px solid #ffffff20}.tw-beauty-category-tabs button{flex:1;padding:9px 6px;border:0;border-bottom:2px solid transparent;background:transparent;color:#b8aaa4;font-size:11px;font-weight:700}.tw-beauty-category-tabs button.is-active{color:#f2c8bc;border-bottom-color:#e5b6aa}.tw-beauty-tool-grid{display:flex;gap:8px;overflow-x:auto;padding:3px 0 9px;scrollbar-width:none}.tw-beauty-tool-grid button{flex:0 0 54px;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:1px solid #ffffff20;border-radius:12px;background:#211c1b;color:#d9cbc5}.tw-beauty-tool-grid button.is-active{border-color:#e5b6aa;background:#49302e;color:#ffd9cf;box-shadow:0 0 0 1px #e5b6aa55}.tw-beauty-tool-grid button span{font-size:19px}.tw-beauty-tool-grid button small{font-size:9px;white-space:nowrap}.tw-beauty-slider-head{display:flex;justify-content:space-between;align-items:center;margin:5px 0;color:#ead8d1;font-size:10px}.tw-beauty-slider-head b{color:#f2c2b4;font-size:11px}.tw-beauty-intensity{width:100%;accent-color:#e5b6aa}.tw-ar-tools-muted{display:none!important}.tw-beauty-hints{display:flex;justify-content:space-between;color:#9f918c;font-size:8px;margin-top:2px}.tw-manual-head{display:flex;justify-content:space-between;align-items:center;color:#e5b6aa;font-size:9px}.tw-manual-beauty label{display:grid;grid-template-columns:1fr auto;gap:7px;margin-top:9px;color:#d8c9c2;font-size:9px}.tw-manual-beauty input{grid-column:1/2;width:100%;accent-color:#e5b6aa}.tw-manual-beauty small{grid-column:2;grid-row:1/3;align-self:center}.tw-ar-tools{display:flex;gap:8px;overflow-x:auto;padding:0 0 10px;align-items:center}.tw-ar-tools label{display:flex;align-items:center;gap:4px;white-space:nowrap;color:#d8c9c2;font-size:8px}.tw-ar-tools select,.tw-ar-tools button{border:1px solid #ffffff30;border-radius:8px;background:#211c1b;color:#f6f0ec;padding:6px;font-size:9px}.tw-ar-tools button.tw-save-beauty{flex:0 0 auto;border-color:#e5b6aa;background:#e5b6aa;color:#211715;font-weight:800;padding:8px 11px}.tw-ar-tools input{accent-color:#e5b6aa}.tw-save-settings-row{display:grid;gap:8px;margin:3px 0 11px}.tw-save-settings-button{width:100%;min-height:39px;border:1px solid #e5b6aa;border-radius:10px;background:#e5b6aa;color:#211715;font-size:11px;font-weight:800}.tw-saved-presets{display:flex;gap:7px;overflow-x:auto;padding-bottom:3px}.tw-saved-presets button{flex:0 0 auto;border:1px solid #ffffff30;border-radius:8px;background:#211c1b;color:#f6f0ec;padding:7px 9px;font-size:9px}
         .tw-live-shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,#0009,transparent 23%,transparent 54%,#000b 100%)}
         .tw-camera-header{position:absolute;z-index:2;top:max(16px,env(safe-area-inset-top));left:18px;right:18px;display:flex;align-items:center;justify-content:space-between}
