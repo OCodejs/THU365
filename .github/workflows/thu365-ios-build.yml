@@ -1,0 +1,115 @@
+name: THU365 iOS Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      distribution:
+        description: Build a simulator app or a signed App Store IPA
+        required: true
+        type: choice
+        options:
+          - simulator
+          - app-store
+        default: simulator
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: artifacts/mockup-sandbox
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.1
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build web app
+        run: pnpm build
+      - name: Generate and sync Capacitor iOS project
+        run: |
+          pnpm exec cap add ios
+          pnpm exec cap sync ios
+          PLIST="ios/App/App/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string THU365 needs camera access for live beauty effects and photos." "$PLIST" || /usr/libexec/PlistBuddy -c "Set :NSCameraUsageDescription THU365 needs camera access for live beauty effects and photos." "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string THU365 uses the microphone when recording videos with sound." "$PLIST" || /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription THU365 uses the microphone when recording videos with sound." "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryAddUsageDescription string THU365 saves photos and videos to your library." "$PLIST" || /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryAddUsageDescription THU365 saves photos and videos to your library." "$PLIST"
+      - name: Build iOS Simulator app
+        if: inputs.distribution == 'simulator'
+        run: xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO build
+      - name: Upload Simulator app
+        if: inputs.distribution == 'simulator'
+        uses: actions/upload-artifact@v4
+        with:
+          name: THU365-iOS-Simulator-App
+          path: artifacts/mockup-sandbox/ios/build/Build/Products/Debug-iphonesimulator/App.app
+          if-no-files-found: error
+      - name: Check App Store signing secrets
+        if: inputs.distribution == 'app-store'
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          test -n "$IOS_CERTIFICATE_BASE64" || (echo 'Missing IOS_CERTIFICATE_BASE64' && exit 1)
+          test -n "$IOS_CERTIFICATE_PASSWORD" || (echo 'Missing IOS_CERTIFICATE_PASSWORD' && exit 1)
+          test -n "$IOS_PROVISIONING_PROFILE_BASE64" || (echo 'Missing IOS_PROVISIONING_PROFILE_BASE64' && exit 1)
+          test -n "$APPLE_TEAM_ID" || (echo 'Missing APPLE_TEAM_ID' && exit 1)
+      - name: Import Apple signing assets
+        if: inputs.distribution == 'app-store'
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/thu365-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          echo "$IOS_CERTIFICATE_BASE64" | base64 --decode > "$RUNNER_TEMP/distribution.p12"
+          security import "$RUNNER_TEMP/distribution.p12" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/thu365.mobileprovision"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' /dev/stdin < <(security cms -D -i "$RUNNER_TEMP/thu365.mobileprovision"))
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print Name' /dev/stdin < <(security cms -D -i "$RUNNER_TEMP/thu365.mobileprovision"))
+          cp "$RUNNER_TEMP/thu365.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+      - name: Archive signed iOS app
+        if: inputs.distribution == 'app-store'
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/THU365.xcarchive" DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution' PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" archive
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key><dict><key>com.ocodejs.thu365</key><string>$PROFILE_NAME</string></dict>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/THU365.xcarchive" -exportPath "$RUNNER_TEMP/export" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+      - name: Upload signed IPA
+        if: inputs.distribution == 'app-store'
+        uses: actions/upload-artifact@v4
+        with:
+          name: THU365-iOS-App-Store-IPA
+          path: ${{ runner.temp }}/export/*.ipa
+          if-no-files-found: error
