@@ -207,6 +207,7 @@ export function THU365WebApp() {
       const actual = stream.getVideoTracks()[0]?.getSettings?.();
       setCameraQuality(actual?.width && actual?.height ? String(actual.width) + "×" + String(actual.height) + (actual.frameRate ? " · " + Math.round(actual.frameRate) + " FPS" : "") : "Thiết bị tự chọn chất lượng");
       streamRef.current = stream;
+      void refreshDevicePermissions();
       setFacing(nextFacing);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -272,6 +273,7 @@ export function THU365WebApp() {
       }
       const audio = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       audioStreamRef.current = audio;
+      void refreshDevicePermissions();
       const recordingStream = new MediaStream([
         ...streamRef.current.getVideoTracks(),
         ...audio.getAudioTracks()
@@ -436,6 +438,7 @@ export function THU365WebApp() {
                 <button className="tw-secondary tw-refresh-permissions" onClick={() => void refreshDevicePermissions()}>Làm mới trạng thái quyền</button>
                 <p className="tw-permission-help">Nếu đã từ chối quyền: mở Cài đặt iPhone → Safari → Camera / Microphone, hoặc mở Cài đặt của website trong Safari để bật lại. Không có ứng dụng web nào được tự bật quyền thay bạn.</p>
               </div>
+              {error && <p className="tw-permission-help" role="alert">{error}</p>}
               <div className="tw-device-install"><h2>Cài đặt ứng dụng</h2><p>{isStandalone ? "AnhThu đang chạy từ màn hình chính." : "Để mở toàn màn hình như ứng dụng, hãy thêm AnhThu vào Màn hình chính."}</p><ol><li>Mở trang AnhThu bằng Safari.</li><li>Chạm nút Chia sẻ.</li><li>Chọn “Thêm vào Màn hình chính”, sau đó xác nhận.</li></ol><small>Icon THU365 sẽ được dùng khi iOS cập nhật dữ liệu PWA. Nếu icon cũ còn hiển thị, xóa shortcut cũ và thêm lại sau khi tải lại trang.</small></div>
               <div className="tw-quality-note"><b>Thiết lập quay hiện tại</b><span>Video bitrate mục tiêu: {studioSettings.video === "4k" ? "20 Mbps" : studioSettings.video === "720" ? "6 Mbps" : "12 Mbps"}</span><small>FPS và độ phân giải thực tế phụ thuộc camera, iOS, Safari và nhiệt độ thiết bị. Bitrate cao không thể khôi phục chi tiết đã mất do thiếu sáng hoặc lấy nét sai.</small></div>
             </div>
