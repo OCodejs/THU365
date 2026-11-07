@@ -28,6 +28,7 @@ PWA và native app dùng chung thương hiệu nhưng không có cùng mức tí
 - Chụp ảnh, quay video; microphone chỉ được hỏi khi người dùng chọn quay video có âm thanh.
 - Bộ lọc màu và điều chỉnh hình ảnh.
 - Các module trải nghiệm làm đẹp, preset, AI model center và Beauty Skills.
+- Nếu AI model hoặc CDN lỗi, camera cơ bản, bộ lọc màu và chụp ảnh vẫn hoạt động; Face Tracking/Skin Segmentation cần model tải thành công.
 - Cài đặt dạng PWA từ Safari, mở độc lập từ biểu tượng Màn hình chính.
 - Cache app shell để hỗ trợ tải lại; lần truy cập đầu cần kết nối mạng.
 
@@ -49,7 +50,7 @@ Bản web có Face Landmarker, Skin Segmentation và các trải nghiệm làm �
 2. Chạm **Chia sẻ** → **Thêm vào Màn hình chính**.
 3. Nếu có tùy chọn **Mở dưới dạng ứng dụng web**, bật tùy chọn đó.
 4. Chạm **Thêm**, sau đó mở THU365 từ biểu tượng mới.
-5. Làm theo hướng dẫn cài đặt AI model và cấp quyền Camera của iOS.
+5. Cấp quyền Camera khi iOS hỏi. Camera mở trước; AI models tải ở nền. Microphone chỉ được hỏi khi bạn bắt đầu quay video có âm thanh.
 
 PWA không cài hồ sơ nhà phát triển, vì vậy **không cần** xác minh nhà phát triển trong **Cài đặt → Cài đặt chung → VPN & Quản lý thiết bị**.
 
