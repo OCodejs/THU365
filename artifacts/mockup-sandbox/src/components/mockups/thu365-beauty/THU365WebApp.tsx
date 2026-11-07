@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createTHU365FaceTracker, renderFaceAR, type FaceARSettings } from "./THU365FaceAR";
 import {
-  ArrowLeft, Aperture, Camera, Check, ChevronRight, Download, FlipHorizontal2, Settings, UserRound, Menu, Bot, ScanFace,
+  ArrowLeft, Aperture, Camera, Check, ChevronRight, Download, FlipHorizontal2, Settings, UserRound, Menu, ScanFace,
   Image as ImageIcon, LockKeyhole, Mic, Play, RotateCcw, ShieldCheck, Sparkles,
   Video, X, Zap, Clapperboard
 } from "lucide-react";
@@ -589,7 +589,7 @@ export function THU365WebApp() {
             <div className="tw-hero-mark"><RobotFaceScan/></div>
           </div>
           <section className="tw-home-ai">
-            <div className="tw-home-section-title"><div><span>ANHTHU AI</span><h2>Trợ lý làm đẹp thông minh</h2></div><badge>LIVE SCAN</badge></div>
+            <div className="tw-home-section-title"><div><span>ANHTHU AI</span><h2>Trợ lý làm đẹp thông minh</h2></div><small className="tw-live-scan-badge">LIVE SCAN</small></div>
             <div className="tw-ai-assistant-card"><RobotFaceScan/><div><b>Robot AI đang chờ bạn</b><p>Đưa khuôn mặt vào khung. AI sẽ nhận diện điểm mắt, mũi, môi và phân tích ánh sáng trước khi đề xuất hiệu ứng.</p><small><span/> FACE TRACKING · LANDMARK · BEAUTY MATCH</small></div></div>
           </section>
           <section className="tw-home-references">
@@ -941,6 +941,7 @@ export function THU365WebApp() {
         .tw-home-feature-grid svg{width:20px;height:20px;color:#e5b6aa}.tw-home-feature-grid b{font-size:11px}.tw-home-feature-grid small{font-size:9px;line-height:1.45;color:#b8aaa4}
         @media(max-width:380px){.tw-home-hero .tw-hero-copy{max-width:72%}.tw-home-hero .tw-hero-mark{right:-20px!important}.tw-ai-assistant-card .tw-robot-wrap{width:94px;flex-basis:94px}.tw-home-reference-grid>button{height:165px}}
         @media(prefers-reduced-motion:reduce){.tw-nav-drawer,.tw-robot-aura,.tw-robot-scan-line{animation:none!important}}
+        .tw-live-scan-badge{padding:5px 8px;border:1px solid #72f4cb40;border-radius:99px;color:#a5f7dd;font-size:8px;letter-spacing:.1em;font-weight:800}
               `}</style>
     </main>
   );
