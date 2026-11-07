@@ -16,7 +16,7 @@ The installable browser app is served from /thu365/ in the mockup sandbox.
 - Live camera preview through getUserMedia after the camera permission flow.
 - Front/rear camera switching where supported by the device.
 - Local photo capture with lightweight brightness/saturation and color-filter fallback.
-- Face Landmarker and Skin Segmentation enhancements when the model runtime and model files load successfully.
+- Face Landmarker face tracking when its model loads; Skin Segmentation is an independent enhancement and can fail without disabling face tracking.
 - AI model downloads are validated and stored in Cache Storage. Each model download has a 90-second timeout.
 - If AI models cannot be downloaded or initialized, basic camera preview, color filters and photo capture remain available. Face tracking, skin segmentation and AI-dependent video effects remain unavailable until the models load.
 - Video recording requests microphone permission only when the user starts recording with sound. Recording requires the processed-effects pipeline to be ready; the app does not silently record raw video as if effects were applied.
@@ -29,7 +29,7 @@ The installable browser app is served from /thu365/ in the mockup sandbox.
 - Media is held in browser memory/object URLs for the current session. The app does not upload it to a server or provide cloud backup.
 - Saving/export is user initiated. On iOS, use the share sheet to choose **Save Image** or **Save to Files**.
 - Face tracking and skin segmentation require the MediaPipe JS/WASM runtime from the pinned CDN and valid model files from Google Cloud Storage. AI enhancement setup requires a network connection; the basic camera and color-filter fallback can still be used without downloaded AI models.
-- If a model host, CORS policy, browser cache or network connection fails, the app falls back to basic camera and color-filter mode instead of blocking the camera. Model downloads time out after 90 seconds and can be retried from AI Model Center.
+- If Face Landmarker cannot load because of a model host, CORS, browser cache or network error, the app falls back to basic camera and color-filter mode instead of blocking the camera. If only Skin Segmentation fails, Face Landmarker continues with face-oval smoothing. Model downloads time out after 90 seconds and can be retried from AI Model Center.
 - iOS browser camera APIs require HTTPS and a compatible Safari version. Camera and microphone prompts are controlled by iOS.
 - The service worker caches the app shell and same-origin resources as they are requested. The first visit requires network access.
 - This is a PWA, not an Apple-signed IPA or App Store release.
