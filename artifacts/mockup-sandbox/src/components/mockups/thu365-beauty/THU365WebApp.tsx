@@ -118,6 +118,7 @@ export function THU365WebApp() {
   const [arReady, setArReady] = useState(false);
   const [aiReady, setAiReady] = useState(false);
   const [aiRetry, setAiRetry] = useState(0);
+  const setupEntryRef = useRef(false);
   function updateStudioSettings(patch: Partial<{photo:string;video:string;fps:string;mirror:boolean}>) { setStudioSettings((current:any) => { const next = {...current, ...patch}; localStorage.setItem("anhthu-studio-settings", JSON.stringify(next)); return next; }); }
   async function runAIDiagnostics() {
     setCheckingAI(true);
@@ -166,6 +167,8 @@ export function THU365WebApp() {
     } catch(cause){console.warn("Cannot inspect AI model cache",cause);}
   }
   async function downloadAIModel(model:AIModelPack) {
+    const standalone=window.matchMedia?.("(display-mode: standalone)").matches||(navigator as any).standalone===true;
+    if(!standalone){setActiveModule("setup");setScreen("module");showNotice("Hãy cài và mở AnhThu từ Màn hình chính trước khi tải AI.");return;}
     if(!("caches" in window)){showNotice("Trình duyệt không hỗ trợ lưu model offline.");return;}
     setAiModelBusy(true);setAiModelStates(v=>({...v,[model.id]:{installed:false,bytes:0,downloading:true,progress:0,error:""}}));
     try{
@@ -184,6 +187,23 @@ export function THU365WebApp() {
     catch{showNotice("Không thể xóa model khỏi bộ nhớ trình duyệt");}
   }
 
+  async function requestSetupPermissions() {
+    if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia){showNotice("Cần mở AnhThu bằng Safari/Chrome trên HTTPS để cấp quyền camera.");return;}
+    try {
+      const camera=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"},audio:false});
+      camera.getTracks().forEach(track=>track.stop());
+      showNotice("Đã cấp quyền camera.");
+    } catch(error) {
+      const name=error instanceof DOMException?error.name:"";
+      showNotice(name==="NotAllowedError"?"Camera bị từ chối. Hãy bật quyền trong Cài đặt iPhone → Safari.":name==="NotFoundError"?"Không tìm thấy camera trên thiết bị.":"Không thể cấp quyền camera · kiểm tra trình duyệt và cài đặt.");
+    }
+    try {
+      const microphone=await navigator.mediaDevices.getUserMedia({video:false,audio:true});
+      microphone.getTracks().forEach(track=>track.stop());
+    } catch { /* Microphone is optional for photo mode; explain in settings. */ }
+    await refreshDevicePermissions();
+  }
+
   async function refreshDevicePermissions() {
     const read = async (name: "camera" | "microphone") => {
       try {
@@ -200,6 +220,11 @@ export function THU365WebApp() {
     const standalone = window.matchMedia?.("(display-mode: standalone)").matches || (navigator as any).standalone === true;
     setIsStandalone(Boolean(standalone));
     void refreshAIModelInventory();
+    if (!setupEntryRef.current) {
+      setupEntryRef.current = true;
+      setActiveModule("setup");
+      setScreen("module");
+    }
     if (activeModule === "settings") void refreshDevicePermissions();
     if (activeModule === "ai-models") void refreshAIModelInventory();
   }, [activeModule]);
@@ -797,12 +822,14 @@ export function THU365WebApp() {
               <article className="tw-ai-model-card">
                 <div className="tw-ai-model-card-top"><span className="tw-ai-model-icon"><BrainCircuit size={21}/></span><div><b>Bước 2 · Tải và cài AI</b><small>Face Landmarker + Skin Segmentation · bắt buộc</small></div><span className="tw-ai-model-cloud"><Cpu size={14}/></span></div>
                 <p>Hai model được tải và lưu trong Cache Storage riêng của ứng dụng. MediaPipe JavaScript runtime và WASM được tải tự động từ CDN khi khởi chạy AI; cần internet ở lần khởi tạo và không được tính là đã cài offline.</p>
-                <button className="tw-suite-primary" onClick={()=>{setActiveModule("ai-models");void refreshAIModelInventory();}}>Mở AI Model Center <ChevronRight size={15}/></button>
+                <button className="tw-suite-primary" onClick={()=>{const installed=window.matchMedia?.("(display-mode: standalone)").matches||(navigator as any).standalone===true;if(!installed){showNotice("Bước 1 chưa hoàn tất · cài AnhThu vào Màn hình chính rồi mở lại ứng dụng.");return;}setActiveModule("ai-models");void refreshAIModelInventory();}}>Mở AI Model Center <ChevronRight size={15}/></button>
               </article>
               <article className="tw-ai-model-card">
                 <div className="tw-ai-model-card-top"><span className="tw-ai-model-icon"><Camera size={21}/></span><div><b>Bước 3 · Cấp quyền thiết bị</b><small>Camera bắt buộc · Microphone khi quay video có tiếng</small></div></div>
-                <p>iOS/Safari sẽ hiện hộp thoại xin quyền. Người dùng phải tự chạm Cho phép; ứng dụng web không thể tự cấp quyền thay người dùng.</p>
+                <p>Chỉ sau khi cài ứng dụng và tải đủ hai model, chạm nút dưới đây để Safari hiển thị yêu cầu quyền. Người dùng phải tự xác nhận; ứng dụng web không thể tự cấp quyền thay người dùng.</p>
+                <button className="tw-suite-primary" disabled={!isStandalone||!AI_MODEL_PACKS.every(model=>!model.required||aiModelStates[model.id]?.installed)} onClick={()=>void requestSetupPermissions()}>Xin quyền Camera & Microphone</button>
               </article>
+              <button className="tw-secondary" disabled={!isStandalone||!AI_MODEL_PACKS.filter(model=>model.required).every(model=>aiModelStates[model.id]?.installed)} onClick={()=>{void startCamera();}}>Hoàn tất thiết lập · Mở Camera</button>
               <div className="tw-ai-model-note tw-ai-model-warning"><Wifi size={16}/><p><b>Điều kiện:</b> dùng HTTPS, trình duyệt hỗ trợ WebAssembly, WebGL/GPU hoặc CPU fallback, Cache Storage và có mạng khi tải runtime/WASM.</p></div>
               <button className="tw-secondary" onClick={()=>{setActiveModule("ai-models");void refreshAIModelInventory();}}>Tiếp tục cài AI Models</button>
             </div>
