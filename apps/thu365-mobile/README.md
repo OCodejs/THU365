@@ -1,5 +1,9 @@
 # THU365 Native Mobile
 
+**Repository:** [OCodejs/THU365](https://github.com/OCodejs/THU365) · [Build workflows](https://github.com/OCodejs/THU365/actions)
+
+[← Back to project README](https://github.com/OCodejs/THU365#readme)
+
 Expo + React Native native application for iOS and Android.
 
 ## App icon
