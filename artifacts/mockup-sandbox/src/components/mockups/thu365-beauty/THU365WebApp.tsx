@@ -66,7 +66,7 @@ export function THU365WebApp() {
   const [editPanel, setEditPanel] = useState<"light"|"color"|"crop"|"effects">("light");
   const [showEditor, setShowEditor] = useState(true);
   const [exportingEdit, setExportingEdit] = useState(false);
-  const editFilter = `brightness(${editSettings.brightness}%) contrast(${editSettings.contrast}%) saturate(${editSettings.saturation}%) hue-rotate(${editSettings.hue}deg)`;
+  const editFilter = `${activePreset.filter} brightness(${editSettings.brightness}%) contrast(${editSettings.contrast}%) saturate(${editSettings.saturation}%) hue-rotate(${editSettings.hue}deg)`;
   const [profileName, setProfileName] = useState(() => localStorage.getItem("anhthu-profile-name") || "AnhThu User");
   const [studioSettings, setStudioSettings] = useState(() => { try { return { photo: "1080", video: "1080", fps: "60", mirror: true, ...JSON.parse(localStorage.getItem("anhthu-studio-settings") || "{}") }; } catch { return { photo: "1080", video: "1080", fps: "60", mirror: true }; } });
   const [cameraQuality, setCameraQuality] = useState("Đang chờ camera");
@@ -466,13 +466,15 @@ export function THU365WebApp() {
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === "AbortError") return;
     }
-    const link = document.createElement("a");
-    link.href = mediaUrl;
-    link.download = mediaName;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    showNotice("Đã gửi yêu cầu lưu tệp đã chỉnh sửa. Kiểm tra Ảnh hoặc Tệp trên iPhone.");
+    const outputUrl = URL.createObjectURL(outputBlob);
+    const downloadLink = document.createElement("a");
+    downloadLink.href = outputUrl;
+    downloadLink.download = file.name;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+    window.setTimeout(() => URL.revokeObjectURL(outputUrl), 30000);
+    showNotice("Đã xuất tệp đã chỉnh sửa. Kiểm tra Ảnh hoặc Tệp trên iPhone.");
     setExportingEdit(false);
   }
 
@@ -678,7 +680,7 @@ export function THU365WebApp() {
             </div>}
             {editPanel==="color" && <div className="tw-editor-controls">
               {([["saturation","Độ bão hòa",0,200],["warmth","Nhiệt độ màu",-100,100],["hue","Sắc độ",-180,180]] as const).map(([key,label,min,max])=><label key={key}>{label}<input type="range" min={min} max={max} value={editSettings[key]} onChange={e=>setEditSettings(v=>({...v,[key]:Number(e.target.value)}))}/><small>{editSettings[key]}</small></label>)}
-              <div className="tw-tone-palette"><span>Tông phủ nền ảnh</span>{[["none","Tự nhiên"],["#f0b7a4","Peach"],["#d9b8e8","Lavender"],["#b7d9e8","Icy"],["#d5bd91","Vintage"],["#d99a9a","Rose"],["#a4b99b","Sage"]].map(([tone,label])=><button key={tone} className={editSettings.tone===tone?"selected":""} onClick={()=>setEditSettings(v=>({...v,tone))} style={{background:tone==="none"?"#252124":tone}} title={label}>{tone==="none"?"×":""}</button>)}</div>
+              <div className="tw-tone-palette"><span>Tông phủ nền ảnh</span>{[["none","Tự nhiên"],["#f0b7a4","Peach"],["#d9b8e8","Lavender"],["#b7d9e8","Icy"],["#d5bd91","Vintage"],["#d99a9a","Rose"],["#a4b99b","Sage"]].map(([tone,label])=><button key={tone} className={editSettings.tone===tone?"selected":""} onClick={()=>setEditSettings(v=>({...v,tone}))} style={{background:tone==="none"?"#252124":tone}} title={label}>{tone==="none"?"×":""}</button>)}</div>
             </div>}
             {editPanel==="crop" && <div className="tw-editor-controls">
               <label>Tỷ lệ khung hình<select value={editSettings.aspect} onChange={e=>setEditSettings(v=>({...v,aspect:e.target.value}))}><option value="original">Gốc</option><option value="square">1:1 Vuông</option><option value="portrait">4:5 Chân dung</option><option value="landscape">16:9 Ngang</option></select></label>
