@@ -160,7 +160,7 @@ export function THU365WebApp() {
   async function refreshAIModelInventory() {
     if (!("caches" in window)) return;
     try { const cache=await caches.open(AI_MODEL_CACHE); const next:Record<string,{installed:boolean;bytes:number;downloading:boolean;progress:number;error:string}>={};
-      for(const model of AI_MODEL_PACKS){const response=await cache.match(model.url);const blob=response?await response.blob():null;next[model.id]={installed:Boolean(blob),bytes:blob?.size??0,downloading:false,progress:blob?100:0,error:""};}
+      for(const model of AI_MODEL_PACKS){const response=await cache.match(model.url);const blob=response?await response.blob():null;next[model.id]={installed:Boolean(blob&&blob.size>0),bytes:blob?.size??0,downloading:false,progress:blob&&blob.size>0?100:0,error:blob&&!blob.size?"Tệp model rỗng · cần tải lại":""};}
       setAiModelStates(next);
     } catch(cause){console.warn("Cannot inspect AI model cache",cause);}
   }
@@ -749,7 +749,7 @@ export function THU365WebApp() {
             <div className="tw-skills-grid">
               <button onClick={() => {setBeautyCategory("face");setActiveBeautyTool("smooth");setMode("image");setShortVideoMode(false);setError("");setScreen("permission");}}><span><Sparkles/></span><b>Làm mịn da</b><small>Da mềm, giữ texture</small></button>
               <button onClick={() => {setBeautyCategory("makeup");setActiveBeautyTool("lipstick");setMode("image");setShortVideoMode(false);setError("");setScreen("permission");}}><span><Aperture/></span><b>Trang điểm AI</b><small>Son, má hồng, eyeliner</small></button>
-              <button onClick={() => {setBeautyCategory("face");setActiveBeautyTool("faceSlim");setMode("image");setShortVideoMode(false);setError("");setScreen("permission");}}><span><ScanFace/></span><b>Tạo khối gương mặt</b><small>Đường nét tự nhiên</small></button>
+              <button onClick={() => {setBeautyCategory("face");setActiveBeautyTool("slim");setMode("image");setShortVideoMode(false);setError("");setScreen("permission");}}><span><ScanFace/></span><b>Tạo khối gương mặt</b><small>Đường nét tự nhiên</small></button>
               <button onClick={() => {setBeautyCategory("makeup");setActiveBeautyTool("hairTint");setMode("image");setShortVideoMode(false);setError("");setScreen("permission");}}><span><Sparkles/></span><b>Màu tóc</b><small>Thử tông màu tóc</small></button>
               <button onClick={() => {setBeautyCategory("face");setActiveBeautyTool("light");setMode("image");setShortVideoMode(false);setError("");setScreen("permission");}}><span><Zap/></span><b>Ánh sáng chân dung</b><small>Soft, studio, glow</small></button>
               <button onClick={() => {setActiveModule("editor");setScreen("module");}}><span><Aperture/></span><b>Màu phim & nền</b><small>Color grade, phông nền</small></button>
