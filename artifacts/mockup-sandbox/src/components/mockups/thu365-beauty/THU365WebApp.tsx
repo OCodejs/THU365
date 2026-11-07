@@ -124,7 +124,9 @@ export function THU365WebApp() {
   const [arReady, setArReady] = useState(false);
   const [aiReady, setAiReady] = useState(false);
   const [aiRetry, setAiRetry] = useState(0);
+  const [setupStage, setSetupStage] = useState<"install"|"models"|"camera"|"ready"|"error">("install");
   const setupEntryRef = useRef(false);
+  const autoSetupStartedRef = useRef(false);
   function updateStudioSettings(patch: Partial<{photo:string;video:string;fps:string;mirror:boolean}>) { setStudioSettings((current:any) => { const next = {...current, ...patch}; localStorage.setItem("anhthu-studio-settings", JSON.stringify(next)); return next; }); }
   async function runAIDiagnostics() {
     setCheckingAI(true);
@@ -186,22 +188,30 @@ export function THU365WebApp() {
       const blob=new Blob(blobParts,{type:"application/octet-stream"});if(!await validateAIModelBlob(model,blob))throw new Error("Tệp tải về không đúng định dạng model "+model.format+". Hãy thử tải lại hoặc kiểm tra mạng.");
       const cache=await caches.open(AI_MODEL_CACHE);await cache.put(model.url,new Response(blob,{headers:{"Content-Type":"application/octet-stream","Content-Length":String(blob.size)}}));
       setAiModelStates(v=>({...v,[model.id]:{installed:true,bytes:blob.size,downloading:false,progress:100,error:""}}));showNotice(model.name+" đã tải và lưu trên thiết bị");
-    }catch(cause){const message=cause instanceof Error?cause.message:"Không thể tải model";setAiModelStates(v=>({...v,[model.id]:{installed:false,bytes:0,downloading:false,progress:0,error:message}}));showNotice("Tải model thất bại · kiểm tra mạng hoặc CORS");}
+      return true;
+    }catch(cause){const message=cause instanceof Error?cause.message:"Không thể tải model";setAiModelStates(v=>({...v,[model.id]:{installed:false,bytes:0,downloading:false,progress:0,error:message}}));showNotice("Tải model thất bại · kiểm tra mạng hoặc CORS");return false;}
     finally{setAiModelBusy(false);}
   }
-  async function downloadRequiredAIModels() {
+  async function downloadRequiredAIModels():Promise<boolean> {
     const standalone=window.matchMedia?.("(display-mode: standalone)").matches||(navigator as any).standalone===true;
-    if(!standalone){setActiveModule("setup");setScreen("module");showNotice("Cài và mở AnhThu từ Màn hình chính trước khi tải AI.");return;}
+    if(!standalone){setActiveModule("setup");setScreen("module");setSetupStage("install");showNotice("Cài và mở AnhThu từ Màn hình chính trước khi tải AI.");return false;}
     for(const model of AI_MODEL_PACKS.filter(item=>item.required)){
-      await downloadAIModel(model);
+      let valid=false;
+      try{const cache=await caches.open(AI_MODEL_CACHE);const response=await cache.match(model.url);const blob=response?await response.blob():null;valid=await validateAIModelBlob(model,blob);}catch{}
+      if(!valid){
+        setSetupStage("models");
+        const downloaded=await downloadAIModel(model);
+        if(!downloaded)return false;
+      }
       try{
         const cache=await caches.open(AI_MODEL_CACHE);
         const response=await cache.match(model.url);
         const blob=response?await response.blob():null;
-        if(!await validateAIModelBlob(model,blob)){showNotice("Chưa cài xong "+model.name+". Kiểm tra lỗi tải rồi thử lại.");break;}
-      }catch{showNotice("Không kiểm tra được model "+model.name+" trong bộ nhớ.");break;}
+        if(!await validateAIModelBlob(model,blob)){showNotice("Chưa cài xong "+model.name+". Kiểm tra lỗi tải rồi thử lại.");return false;}
+      }catch{showNotice("Không kiểm tra được model "+model.name+" trong bộ nhớ.");return false;}
     }
     await refreshAIModelInventory();
+    return true;
   }
 
   async function removeAIModel(model:AIModelPack){
@@ -209,21 +219,41 @@ export function THU365WebApp() {
     catch{showNotice("Không thể xóa model khỏi bộ nhớ trình duyệt");}
   }
 
-  async function requestSetupPermissions() {
-    if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia){showNotice("Cần mở AnhThu bằng Safari/Chrome trên HTTPS để cấp quyền camera.");return;}
+  async function requestSetupPermissions():Promise<boolean> {
+    if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia){showNotice("Cần mở AnhThu bằng Safari/Chrome trên HTTPS để cấp quyền camera.");return false;}
     try {
       const camera=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"},audio:false});
       camera.getTracks().forEach(track=>track.stop());
-      showNotice("Đã cấp quyền camera.");
     } catch(error) {
       const name=error instanceof DOMException?error.name:"";
       showNotice(name==="NotAllowedError"?"Camera bị từ chối. Hãy bật quyền trong Cài đặt iPhone → Safari.":name==="NotFoundError"?"Không tìm thấy camera trên thiết bị.":"Không thể cấp quyền camera · kiểm tra trình duyệt và cài đặt.");
+      await refreshDevicePermissions();
+      return false;
     }
     try {
       const microphone=await navigator.mediaDevices.getUserMedia({video:false,audio:true});
       microphone.getTracks().forEach(track=>track.stop());
-    } catch { /* Microphone is optional for photo mode; explain in settings. */ }
+    } catch { /* Microphone is optional; photo mode remains available. */ }
     await refreshDevicePermissions();
+    return true;
+  }
+
+  async function runAutoSetup() {
+    if(autoSetupStartedRef.current)return;
+    autoSetupStartedRef.current=true;
+    const standalone=window.matchMedia?.("(display-mode: standalone)").matches||(navigator as any).standalone===true;
+    setIsStandalone(Boolean(standalone));
+    if(!standalone){setSetupStage("install");setActiveModule("setup");setScreen("module");return;}
+    setActiveModule("setup");setScreen("module");
+    setSetupStage("models");
+    const modelsReady=await downloadRequiredAIModels();
+    if(!modelsReady){setSetupStage("error");return;}
+    setSetupStage("camera");
+    const permissionGranted=await requestSetupPermissions();
+    if(!permissionGranted){setSetupStage("camera");showNotice("Cần cho phép camera để hoàn tất. Chạm nút thử lại nếu hộp thoại chưa xuất hiện.");return;}
+    setSetupStage("ready");
+    localStorage.setItem("anhthu-setup-complete-v1","true");
+    await startCamera();
   }
 
   async function refreshDevicePermissions() {
@@ -244,23 +274,8 @@ export function THU365WebApp() {
     void refreshAIModelInventory();
     if (!setupEntryRef.current) {
       setupEntryRef.current = true;
-      if (!standalone || !("caches" in window)) {
-        setActiveModule("setup");
-        setScreen("module");
-      } else {
-        void (async () => {
-          try {
-            const cache = await caches.open(AI_MODEL_CACHE);
-            let ready = true;
-            for (const model of AI_MODEL_PACKS.filter(item => item.required)) {
-              const response = await cache.match(model.url);
-              const blob = response ? await response.blob() : null;
-              if (!await validateAIModelBlob(model,blob)) ready = false;
-            }
-            if (!ready) { setActiveModule("setup"); setScreen("module"); }
-          } catch { setActiveModule("setup"); setScreen("module"); }
-        })();
-      }
+      const complete=localStorage.getItem("anhthu-setup-complete-v1")==="true";
+      if(!standalone||!("caches" in window)||!complete) void runAutoSetup();
     }
     if (activeModule === "settings") void refreshDevicePermissions();
     if (activeModule === "ai-models") void refreshAIModelInventory();
