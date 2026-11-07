@@ -61,6 +61,9 @@ jobs:
       - name: Generate iOS native project
         run: CI=1 npx expo prebuild --platform ios
 
+      - name: Install iOS CocoaPods dependencies
+        run: npx pod-install ios
+
       - name: Verify generated Xcode workspace
         run: xcodebuild -list -workspace ios/THU365.xcworkspace
 
