@@ -190,6 +190,7 @@ export function THU365WebApp() {
       const blob=new Blob(blobParts,{type:"application/octet-stream"});if(!await validateAIModelBlob(model,blob))throw new Error("Tệp tải về không đúng định dạng model "+model.format+". Hãy thử tải lại hoặc kiểm tra mạng.");
       const cache=await caches.open(AI_MODEL_CACHE);await cache.put(model.url,new Response(blob,{headers:{"Content-Type":"application/octet-stream","Content-Length":String(blob.size)}}));
       setAiModelStates(v=>({...v,[model.id]:{installed:true,bytes:blob.size,downloading:false,progress:100,error:""}}));showNotice(model.name+" đã tải và lưu trên thiết bị");
+      setAiRetry(value=>value+1);
       return true;
     }catch(cause){const message=cause instanceof DOMException&&cause.name==="AbortError"?"Hết thời gian tải model sau 90 giây":cause instanceof Error?cause.message:"Không thể tải model";setAiModelStates(v=>({...v,[model.id]:{installed:false,bytes:0,downloading:false,progress:0,error:message}}));showNotice("Tải model thất bại · camera cơ bản vẫn dùng được; hãy kiểm tra mạng hoặc CORS");return false;}
     finally{window.clearTimeout(timeout);setAiModelBusy(false);}
