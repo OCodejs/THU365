@@ -4,62 +4,90 @@ on:
   workflow_dispatch:
     inputs:
       distribution:
-        description: Build a simulator app or a signed App Store IPA
+        description: Build a simulator app, TestFlight IPA or Ad Hoc IPA
         required: true
         type: choice
         options:
           - simulator
           - app-store
+          - ad-hoc
         default: simulator
+  pull_request:
+    paths:
+      - "apps/thu365-mobile/**"
+      - ".github/workflows/thu365-ios-build.yml"
 
 permissions:
   contents: read
 
+concurrency:
+  group: thu365-ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: macos-15
+    timeout-minutes: 60
     defaults:
       run:
-        working-directory: artifacts/mockup-sandbox
+        working-directory: apps/thu365-mobile
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.11.1
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Build web app
-        run: pnpm build
-      - name: Install temporary Capacitor toolchain
-        run: pnpm add -D @capacitor/cli@^7.4.3 @capacitor/core@^7.4.3 @capacitor/ios@^7.4.3
-      - name: Generate and sync Capacitor iOS project
+          node-version: "22.13"
+
+      - name: Install native app dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Generate native app icon from the official THU365 logo
         run: |
-          pnpm exec cap add ios
-          pnpm exec cap sync ios
-          PLIST="ios/App/App/Info.plist"
-          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string THU365 needs camera access for live beauty effects and photos." "$PLIST" || /usr/libexec/PlistBuddy -c "Set :NSCameraUsageDescription THU365 needs camera access for live beauty effects and photos." "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string THU365 uses the microphone when recording videos with sound." "$PLIST" || /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription THU365 uses the microphone when recording videos with sound." "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryAddUsageDescription string THU365 saves photos and videos to your library." "$PLIST" || /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryAddUsageDescription THU365 saves photos and videos to your library." "$PLIST"
+          mkdir -p assets
+          npm install --no-save --no-audit --no-fund sharp
+          node -e "require('sharp')('../../artifacts/mockup-sandbox/public/thu365/app-icon.svg').resize(1024,1024).png().toFile('assets/icon.png').then(()=>console.log('Generated assets/icon.png')).catch(error=>{console.error(error);process.exit(1)})"
+
+      - name: Verify Expo package compatibility
+        run: npx expo install --check
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Expo project diagnostics
+        run: npx expo-doctor
+
+      - name: Generate iOS native project
+        run: CI=1 npx expo prebuild --platform ios
+
+      - name: Install iOS CocoaPods dependencies
+        run: npx pod-install ios
+
+      - name: Verify generated Xcode workspace
+        run: xcodebuild -list -workspace ios/THU365.xcworkspace
+
       - name: Build iOS Simulator app
-        if: inputs.distribution == 'simulator'
-        run: xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO build
+        if: github.event_name == 'pull_request' || inputs.distribution == 'simulator'
+        run: |
+          xcodebuild -workspace ios/THU365.xcworkspace \
+            -scheme THU365 \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath ios/build \
+            CODE_SIGNING_ALLOWED=NO build
+
       - name: Upload Simulator app
         if: inputs.distribution == 'simulator'
         uses: actions/upload-artifact@v4
         with:
           name: THU365-iOS-Simulator-App
-          path: artifacts/mockup-sandbox/ios/build/Build/Products/Debug-iphonesimulator/App.app
+          path: apps/thu365-mobile/ios/build/Build/Products/Debug-iphonesimulator/THU365.app
           if-no-files-found: error
-      - name: Check App Store signing secrets
-        if: inputs.distribution == 'app-store'
+          retention-days: 30
+
+      - name: Check Apple signing secrets
+        if: github.event_name == 'workflow_dispatch' && (inputs.distribution == 'app-store' || inputs.distribution == 'ad-hoc')
         env:
           IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
@@ -70,8 +98,9 @@ jobs:
           test -n "$IOS_CERTIFICATE_PASSWORD" || (echo 'Missing IOS_CERTIFICATE_PASSWORD' && exit 1)
           test -n "$IOS_PROVISIONING_PROFILE_BASE64" || (echo 'Missing IOS_PROVISIONING_PROFILE_BASE64' && exit 1)
           test -n "$APPLE_TEAM_ID" || (echo 'Missing APPLE_TEAM_ID' && exit 1)
+
       - name: Import Apple signing assets
-        if: inputs.distribution == 'app-store'
+        if: github.event_name == 'workflow_dispatch' && (inputs.distribution == 'app-store' || inputs.distribution == 'ad-hoc')
         env:
           IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
@@ -84,34 +113,57 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           echo "$IOS_CERTIFICATE_BASE64" | base64 --decode > "$RUNNER_TEMP/distribution.p12"
           security import "$RUNNER_TEMP/distribution.p12" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" "$HOME/Library/Keychains/login.keychain-db"
+          security default-keychain -d user -s "$KEYCHAIN_PATH"
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/thu365.mobileprovision"
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' /dev/stdin < <(security cms -D -i "$RUNNER_TEMP/thu365.mobileprovision"))
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print Name' /dev/stdin < <(security cms -D -i "$RUNNER_TEMP/thu365.mobileprovision"))
           cp "$RUNNER_TEMP/thu365.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
-      - name: Archive signed iOS app
-        if: inputs.distribution == 'app-store'
+
+      - name: Archive signed native iOS app
+        if: github.event_name == 'workflow_dispatch' && (inputs.distribution == 'app-store' || inputs.distribution == 'ad-hoc')
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DISTRIBUTION: ${{ inputs.distribution }}
         run: |
-          xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/THU365.xcarchive" DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution' PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" archive
+          xcodebuild -workspace ios/THU365.xcworkspace \
+            -scheme THU365 \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/THU365.xcarchive" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY='Apple Distribution' \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            archive
+
+          if [ "$DISTRIBUTION" = "ad-hoc" ]; then EXPORT_METHOD="ad-hoc"; else EXPORT_METHOD="app-store-connect"; fi
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
-            <key>method</key><string>app-store</string>
+            <key>method</key><string>$EXPORT_METHOD</string>
             <key>teamID</key><string>$APPLE_TEAM_ID</string>
             <key>signingStyle</key><string>manual</string>
-            <key>provisioningProfiles</key><dict><key>com.ocodejs.thu365</key><string>$PROFILE_NAME</string></dict>
+            <key>provisioningProfiles</key><dict>
+              <key>app.thu365.beautycamera</key><string>$PROFILE_NAME</string>
+            </dict>
           </dict></plist>
           PLIST
-          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/THU365.xcarchive" -exportPath "$RUNNER_TEMP/export" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
-      - name: Upload signed IPA
-        if: inputs.distribution == 'app-store'
+
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/THU365.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+
+      - name: Upload signed native IPA
+        if: github.event_name == 'workflow_dispatch' && (inputs.distribution == 'app-store' || inputs.distribution == 'ad-hoc')
         uses: actions/upload-artifact@v4
         with:
-          name: THU365-iOS-App-Store-IPA
+          name: THU365-iOS-${{ inputs.distribution }}-IPA
           path: ${{ runner.temp }}/export/*.ipa
           if-no-files-found: error
+          retention-days: 30

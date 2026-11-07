@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   build-android-apk:
-    name: Build installable Android APK
+    name: Build installable Android test APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
@@ -30,8 +30,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22.13"
-          cache: npm
-          cache-dependency-path: apps/thu365-mobile/package.json
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -41,6 +39,12 @@ jobs:
 
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
+
+      - name: Generate native app icon from the official THU365 logo
+        run: |
+          mkdir -p assets
+          npm install --no-save --no-audit --no-fund sharp
+          node -e "require('sharp')('../../artifacts/mockup-sandbox/public/thu365/app-icon.svg').resize(1024,1024).png().toFile('assets/icon.png').then(()=>console.log('Generated assets/icon.png')).catch(error=>{console.error(error);process.exit(1)})"
 
       - name: Check Expo package compatibility
         run: npx expo install --check
