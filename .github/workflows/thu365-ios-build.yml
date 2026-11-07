@@ -4,12 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       distribution:
-        description: Build a simulator app or a signed App Store IPA
+        description: Build a simulator app, TestFlight IPA or Ad Hoc IPA
         required: true
         type: choice
         options:
           - simulator
           - app-store
+          - ad-hoc
         default: simulator
   pull_request:
     paths:
@@ -82,8 +83,8 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Check App Store signing secrets
-        if: github.event_name == 'workflow_dispatch' && inputs.distribution == 'app-store'
+      - name: Check Apple signing secrets
+        if: github.event_name == 'workflow_dispatch' && (inputs.distribution == 'app-store' || inputs.distribution == 'ad-hoc')
         env:
           IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
@@ -96,7 +97,7 @@ jobs:
           test -n "$APPLE_TEAM_ID" || (echo 'Missing APPLE_TEAM_ID' && exit 1)
 
       - name: Import Apple signing assets
-        if: inputs.distribution == 'app-store'
+        if: github.event_name == 'workflow_dispatch' && (inputs.distribution == 'app-store' || inputs.distribution == 'ad-hoc')
         env:
           IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
@@ -120,9 +121,10 @@ jobs:
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
 
       - name: Archive signed native iOS app
-        if: inputs.distribution == 'app-store'
+        if: github.event_name == 'workflow_dispatch' && (inputs.distribution == 'app-store' || inputs.distribution == 'ad-hoc')
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DISTRIBUTION: ${{ inputs.distribution }}
         run: |
           xcodebuild -workspace ios/THU365.xcworkspace \
             -scheme THU365 \
@@ -135,11 +137,12 @@ jobs:
             PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
             archive
 
+          if [ "$DISTRIBUTION" = "ad-hoc" ]; then EXPORT_METHOD="ad-hoc"; else EXPORT_METHOD="app-store-connect"; fi
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
-            <key>method</key><string>app-store-connect</string>
+            <key>method</key><string>$EXPORT_METHOD</string>
             <key>teamID</key><string>$APPLE_TEAM_ID</string>
             <key>signingStyle</key><string>manual</string>
             <key>provisioningProfiles</key><dict>
@@ -154,10 +157,10 @@ jobs:
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
 
       - name: Upload signed native IPA
-        if: inputs.distribution == 'app-store'
+        if: github.event_name == 'workflow_dispatch' && (inputs.distribution == 'app-store' || inputs.distribution == 'ad-hoc')
         uses: actions/upload-artifact@v4
         with:
-          name: THU365-iOS-App-Store-IPA
+          name: THU365-iOS-${{ inputs.distribution }}-IPA
           path: ${{ runner.temp }}/export/*.ipa
           if-no-files-found: error
           retention-days: 30
