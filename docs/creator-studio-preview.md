@@ -2,7 +2,7 @@
 
 ## Scope
 
-This branch introduces a focused Creator Studio interface refresh for the existing THU365 web prototype. It does not replace the existing PWA or native camera implementation.
+This branch introduces a focused Creator Studio interface refresh for the existing THU365 web prototype and a shared React Native screen used by iOS and Android. It does not replace the existing PWA or native camera implementation.
 
 ## Prototype interactions
 
@@ -27,8 +27,8 @@ This branch introduces a focused Creator Studio interface refresh for the existi
 | Area | Status |
 | --- | --- |
 | Web prototype | UI and local interactions |
-| iOS native | Existing Expo camera/permission prototype; Creator Studio not yet ported |
-| Android native | Existing Expo camera/permission prototype; Creator Studio not yet ported |
+| iOS native | Shared Expo Creator Studio UI prototype plus existing camera/permission flow |
+| Android native | Shared Expo Creator Studio UI prototype plus existing camera/permission flow |
 | Realtime face tracking | Not implemented in this branch |
 | GPU effects / AI inference | Not implemented in this branch |
 | Video timeline rendering/export | UI prototype only; no encoded video output |
