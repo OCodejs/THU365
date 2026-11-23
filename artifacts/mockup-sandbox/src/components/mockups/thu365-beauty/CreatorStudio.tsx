@@ -44,6 +44,7 @@ export function CreatorStudio({ onExit, onReviewShare }: { onExit?: () => void; 
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [selectedClip, setSelectedClip] = useState(0);
   const [sticker, setSticker] = useState("");
   const [caption, setCaption] = useState(() => readVideoDraft().caption);
   const [coverIndex, setCoverIndex] = useState(() => readVideoDraft().coverIndex);
@@ -165,13 +166,58 @@ export function CreatorStudio({ onExit, onReviewShare }: { onExit?: () => void; 
           .timeline { height:84px; }
           .tools-row { height:64px; }
         }
-      `}</style>
+      `}/* THU365 Creator Studio preview refresh: square, black, mobile-first. */
+.thu-studio { --bg:#050505; --panel:#0b0b0b; --line:#292929; --muted:#929292; --soft:#f3f3f3; --accent:#d9f26b; --accent2:#c7dc75; background:#050505; color:#f5f5f5; font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; max-width:560px; margin:0 auto; }
+.thu-studio * { border-radius:0 !important; }
+.studio-top { min-height:54px; border-bottom:1px solid #252525; margin-bottom:8px; }
+.studio-title { font:700 13px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.studio-subtitle,.sound-meta,.export-sub,.export-note { color:#929292; }
+.privacy-pill,.preview-tag,.sound-line,.timeline,.tool-icon,.aspect-button,.draft-edits,.modal-sheet,.export-summary,.sound-choice,.sticker-choice { background:#0b0b0b; border:1px solid #292929; }
+.privacy-pill { color:#d9f26b; padding:7px 9px; letter-spacing:.08em; }
+.preview-stage { min-height:300px; max-height:420px; margin:4px -10px 10px; }
+.portrait-frame { max-width:min(62vw,250px); border:1px solid #343434; box-shadow:none; }
+.portrait-frame::after { background:linear-gradient(180deg,rgba(0,0,0,.38),transparent 25%,transparent 68%,rgba(0,0,0,.5)); }
+.preview-tag { color:#f3f3f3; backdrop-filter:blur(8px); }
+.preview-tools { gap:8px; }
+.preview-tool,.play-preview { background:#050505cc; border:1px solid #777; }
+.play-preview { width:48px; height:48px; }
+.filter-strip { height:72px; gap:8px; }
+.filter-thumb { border:1px solid #393939; }
+.filter-option.selected { color:#d9f26b !important; }
+.filter-option.selected .filter-thumb { border:2px solid #d9f26b; box-shadow:none; }
+.draft-edits { padding:9px; }
+.draft-caption-input,.caption-input { border:1px solid #393939; background:#050505; color:#fff; }
+.cover-option { border:1px solid #444 !important; background:#111 !important; }
+.cover-option.selected { border:2px solid #d9f26b !important; box-shadow:none; }
+.sound-line { min-height:44px; }
+.sound-icon { background:#171d0b; color:#d9f26b; }
+.timeline { height:104px; padding:10px; }
+.timeline-label { color:#f5f5f5; letter-spacing:.02em; }
+.clip-track { height:50px; gap:5px; }
+.clip { border:1px solid #3b3b3b; }
+.clip.active { border:2px solid #d9f26b; }
+.clip-plus { position:static; flex:0 0 30px; width:30px; height:50px; transform:none; border:1px solid #444; background:#111; color:#d9f26b; }
+.timeline-playhead { left:39%; background:#d9f26b; }
+.tools-row { height:76px; }
+.tool-button { color:#d0d0d0 !important; }
+.tool-icon { width:38px; height:38px; color:#d9f26b; }
+.export-row { padding-top:8px; }
+.aspect-button { height:46px; min-width:76px; color:#d9f26b !important; }
+.export-button,.sheet-primary { min-height:46px; background:#d9f26b !important; color:#080808 !important; border:1px solid #d9f26b; font:800 11px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.08em; text-transform:uppercase; box-shadow:none; }
+.studio-modal { background:#000d; }
+.modal-sheet { border:1px solid #444; padding:18px 16px max(20px,env(safe-area-inset-bottom)); }
+.sheet-title { font:700 13px ui-monospace,SFMono-Regular,Menlo,monospace; text-transform:uppercase; letter-spacing:.06em; }
+.sheet-close { border:1px solid #444; background:#111; color:#d9f26b; }
+.sound-choice.chosen,.sticker-choice.chosen { border-color:#d9f26b; background:#111; color:#d9f26b !important; }
+.done-mark { background:#171d0b; color:#d9f26b; }
+@media (max-width:380px) { .thu-studio { padding-left:10px; padding-right:10px; } .preview-stage { min-height:270px; } .portrait-frame { max-width:60vw; } .filter-option { flex-basis:54px; } }
+      </style>
 
       <header className="studio-top">
         <button className="studio-back" aria-label="Quay lại chế độ xem trước" onClick={() => { if (onExit) onExit(); else { setEditing(false); setPanel(null); } }}><ArrowLeft size={19} /></button>
         <div>
-          <div className="studio-title">Dựng câu chuyện</div>
-          <div className="studio-subtitle">Bản nháp · vừa lưu</div>
+          <div className="studio-title">Creator Studio</div>
+          <div className="studio-subtitle">PROJECT 001 · LOCAL DRAFT</div>
         </div>
         <div className="privacy-pill" aria-label="Chỉ mình tôi xem">
           <LockKeyhole size={12} /> Riêng tư
@@ -262,9 +308,9 @@ export function CreatorStudio({ onExit, onReviewShare }: { onExit?: () => void; 
           {[0, 1, 2].map((clip) => (
             <button
               key={clip}
-              className={`clip ${clip === 0 ? "active" : ""}`}
-              onClick={() => setEditing(true)}
-              aria-label={`Chọn đoạn ${clip + 1}`}
+              className={`clip ${clip === selectedClip ? "active" : ""}`}
+              onClick={() => { setSelectedClip(clip); setEditing(true); }}
+              aria-label={`Chọn đoạn ${clip + 1}`} aria-pressed={clip === selectedClip}
             >
               <img src="/__mockup/images/thu365-beauty-portrait.jpg" alt="" />
               {clip === 0 && <span style={{ position: "absolute", left: 5, bottom: 3, fontSize: 8, textShadow: "0 1px 4px #000" }}>Cận cảnh</span>}

@@ -151,6 +151,10 @@ Yêu cầu: Node.js, npm; Xcode trên macOS để build iOS; Android Studio đ�
 | docs/thu365-pwa.md | Hướng dẫn và giới hạn PWA |
 | ios/README.md | Cài đặt, ký và phân phối native iOS |
 
+## Creator Studio Preview
+
+Bản giao diện Creator Studio mới đang được phát triển trên branch `feat/creator-studio-preview`. Phạm vi, tương tác prototype và các giới hạn native/AI/export được ghi tại [docs/creator-studio-preview.md](./docs/creator-studio-preview.md). Đây là bản Preview; chưa có pipeline render video native hoặc tích hợp TikTok trong nhánh này.
+
 ## Agent Skills
 
 Repository có skill hướng dẫn agent tải trực tiếp asset nhị phân lên GitHub bằng Git Data API, bao gồm PNG và WebP:

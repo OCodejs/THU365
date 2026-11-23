@@ -7,8 +7,9 @@ import {
   CameraView, useCameraPermissions, useMicrophonePermissions, type CameraType
 } from "expo-camera";
 import * as MediaLibrary from "expo-media-library/legacy";
+import { CreatorStudioScreen } from "./CreatorStudioScreen";
 
-type Screen = "intro" | "camera" | "gallery";
+type Screen = "intro" | "camera" | "gallery" | "creator";
 type OptionalPrompt = "microphone" | "library" | null;
 type CameraMode = "picture" | "video";
 type PermissionIssue = "camera" | "microphone" | "library" | null;
@@ -280,10 +281,15 @@ export default function App() {
           <View style={s.actions}>
             <Button title={busy ? "ĐANG KIỂM TRA…" : "TIẾP TỤC VỚI CAMERA"}
               onPress={() => void continueToCamera()} disabled={busy} />
+            <Pressable style={s.creatorEntry} onPress={() => setScreen("creator")}>
+              <Text style={s.creatorEntryText}>OPEN CREATOR STUDIO  ↗</Text>
+            </Pressable>
             <Text style={s.footnote}>Chỉ quyền camera được hỏi ở bước tiếp theo. Mic và thư viện không được yêu cầu lúc khởi động.</Text>
           </View>
         </ScrollView>
       )}
+
+      {screen === "creator" && <CreatorStudioScreen onBack={() => setScreen("intro")} />}
 
       {screen === "camera" && (
         <View style={s.cameraScreen}>
@@ -417,6 +423,8 @@ export default function App() {
 }
 
 const s = StyleSheet.create({
+  creatorEntry: { minHeight: 46, borderWidth: 1, borderColor: "#d9f26b", backgroundColor: "#0b0b0b", alignItems: "center", justifyContent: "center", marginTop: 10 },
+  creatorEntryText: { color: "#d9f26b", fontSize: 10, fontWeight: "900", letterSpacing: 1.2 },
   safe: { flex: 1, backgroundColor: C.bg },
   intro: { flexGrow: 1, paddingHorizontal: 22, paddingTop: 18, paddingBottom: 30 },
   brandRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
